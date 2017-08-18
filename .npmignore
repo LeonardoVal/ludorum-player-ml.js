@@ -1,0 +1,10 @@
+.svn
+.git
+npm-debug.log
+node_modules/
+bower_components/
+docs/docker/
+lib/
+src/
+test/
+Gruntfile.js
