@@ -1,0 +1,36 @@
+{
+	"name": "ludorum-player-ml",
+	"description": "Automatic players based in machine learning methods for the Ludorum framework",
+	"version": "0.0.1",
+	"author": {
+		"name": "Leonardo Val",
+		"email": "leonardo.val@creatartis.com",
+		"github": "LeonardoVal",
+		"url": "https://github.com/LeonardoVal"
+	},
+	"contributors": [],
+	"keywords": [],
+	"license": {
+		"type": "MIT",
+		"url": "https://github.com/LeonardoVal/ludorum-player-ml.js/LICENSE.md"
+	},
+	"repository": {},
+	"homepage": "https://github.com/LeonardoVal/ludorum-player-ml.js",
+	"bugs": {
+		"url": "https://github.com/LeonardoVal/ludorum-player-ml.js/issues"
+	},
+	"main": "build/ludorum-player-ml.js",
+	"files": [
+		"LICENSE.md",
+		"build"
+	],
+	"dependencies": {
+		"creatartis-base": "~0.1.7",
+		"sermat": "~0.0.8",
+		"ludorum": "~0.2.0"
+	},
+	"devDependencies": {
+		"creatartis-grunt": "~0.0.3"
+	},
+	"scripts": {}
+}
