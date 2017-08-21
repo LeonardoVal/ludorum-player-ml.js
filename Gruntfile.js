@@ -7,9 +7,7 @@ module.exports = function (grunt) {
 
 	require('creatartis-grunt').config(grunt, {
 		sourceNames: ['__prologue__',
-				'core',
-				'classifiers',
-				'players',
+				'core', 'players', 'classifiers',
 			'__epilogue__'],
 		deps: [
 			{ name: 'creatartis-base', id: 'base',
@@ -17,7 +15,7 @@ module.exports = function (grunt) {
 			{ name: 'sermat', id: 'Sermat',
 				path: 'node_modules/sermat/build/sermat-umd.js' },
 			{ name: 'ludorum', id: 'ludorum',
-				path: 'node_modules/ludorum/build/ludorum.min.js' }
+				path: 'node_modules/ludorum/build/ludorum.js' }
 		]
 	});
 

@@ -4,7 +4,7 @@
 		paths: {
 			'creatartis-base': '/base/tests/lib/creatartis-base.min',
 			'sermat': '/base/tests/lib/sermat-umd',
-			'ludorum': '/base/tests/lib/ludorum.min',
+			'ludorum': '/base/tests/lib/ludorum',
 			'ludorum-player-ml': '/base/tests/lib/ludorum-player-ml'
 		}
 	});
