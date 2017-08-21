@@ -106,6 +106,31 @@ var GameClassifier = exports.GameClassifier = declare({
 		});
 	},
 
+	/** The normalization makes the evaluations for all classes fit in the [0,1] range, adding up
+	to 1. 
+	*/
+	normalizedEvaluate: function normalizedEvaluate(game, player) {
+		var evals = iterable(this.evaluate(game, player)),
+			min = +Infinity,
+			max = -Infinity,
+			sum = 0,
+			count = 0;
+		evals.forEachApply(function (i, v) {
+			if (min > v) {
+				min = v;
+			}
+			if (max < v) {
+				max = v;
+			}
+			sum += v;
+			count++;
+		});
+		sum = sum - count * min;
+		return evals.mapApply(function (i, v) {
+			return [i, (v - min) / sum];
+		}).toArray();
+	},
+
 	/** To `classify` a `game` state is to pick the class with greater evaluation. If more than one
 	has the greatest evaluation, one of these is chosen at random.
 	*/
@@ -122,5 +147,12 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** An `actionClassifier` is a game classifier that uses the game's possible actions as the
 	classes into which classify any game state.
 	*/
-	'static actionClassifier': unimplemented('GameClassifier', 'static actionClassifier(gameModel)')
+	'static actionClassifier': unimplemented('GameClassifier',
+		'static actionClassifier(gameModel)'),
+
+	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
+	classes into which classify any game state.
+	*/
+	'static resultClassifier': unimplemented('GameClassifier',
+		'static resultClassifier(gameModel, possibleResults)')
 }); // declare GameClassifier

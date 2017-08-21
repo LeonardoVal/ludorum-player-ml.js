@@ -10,7 +10,8 @@ function __init__(base, Sermat, ludorum){ "use strict";
 		unimplemented = base.objects.unimplemented,
 		initialize = base.initialize,
 
-		Player = ludorum.Player;
+		Player = ludorum.Player,
+		HeuristicPlayer = ludorum.players.HeuristicPlayer;
 
 // Library layout. /////////////////////////////////////////////////////////////////////////////////
 	var exports = {

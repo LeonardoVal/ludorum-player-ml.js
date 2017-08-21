@@ -7,7 +7,7 @@
 
 	var TicTacToeGameModel = declare(GameModel, {
 		constructor: function TicTacToeGameModel(game) {
-			GameModel.call(this, game);
+			GameModel.call(this, game || new ludorum.games.TicTacToe());
 		},
 
 		__possibleActions__: [0,1,2,3,4,5,6,7,8],
@@ -25,7 +25,7 @@
 		}
 	}); // declare TicTacToeGameModel
 
-	var TICTACTOE_MODEL = new TicTacToeGameModel(new ludorum.games.TicTacToe());
+	var TICTACTOE_MODEL = new TicTacToeGameModel();
 
 	function randomClassifier(ClassifierType) {
 		var random = ClassifierType.prototype.random,
@@ -37,7 +37,8 @@
 
 	describe("LinearClassifier", function () { ////////////////////////////////////////////////////
 		var LinearClassifier = ludorum_player_ml.LinearClassifier,
-			ActionClassifierPlayer = ludorum_player_ml.ActionClassifierPlayer;
+			ActionClassifierPlayer = ludorum_player_ml.ActionClassifierPlayer,
+			ResultClassifierPlayer = ludorum_player_ml.ResultClassifierPlayer;
 
 		it("is properly configured", function () {
 			expect(typeof LinearClassifier).toBe('function');
@@ -57,6 +58,18 @@
 			});
 		});
 
+		it("with ResultClassifierPlayer", function (done) {
+			var ResultLinearClassifier = LinearClassifier.resultClassifier(TICTACTOE_MODEL);
+			expect(ResultLinearClassifier.prototype instanceof LinearClassifier).toBe(true);
+			var linearClassifier = randomClassifier(ResultLinearClassifier);
+			expect(linearClassifier instanceof ResultLinearClassifier).toBe(true);
+			var player = new ResultClassifierPlayer({ classifier: linearClassifier }),
+				match = new Match(TICTACTOE_MODEL.game, [player, player]);
+			match.run().then(function () {
+				expect(match.result()).toBeTruthy();
+				done();
+			});
+		});
 	}); //// LinearClassifier
 
 }); //// define.
