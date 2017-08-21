@@ -18,7 +18,8 @@ function __init__(base, Sermat, ludorum){ "use strict";
 		unimplemented = base.objects.unimplemented,
 		initialize = base.initialize,
 
-		Player = ludorum.Player;
+		Player = ludorum.Player,
+		HeuristicPlayer = ludorum.players.HeuristicPlayer;
 
 // Library layout. /////////////////////////////////////////////////////////////////////////////////
 	var exports = {
@@ -139,6 +140,31 @@ var GameClassifier = exports.GameClassifier = declare({
 		});
 	},
 
+	/** The normalization makes the evaluations for all classes fit in the [0,1] range, adding up
+	to 1. 
+	*/
+	normalizedEvaluate: function normalizedEvaluate(game, player) {
+		var evals = iterable(this.evaluate(game, player)),
+			min = +Infinity,
+			max = -Infinity,
+			sum = 0,
+			count = 0;
+		evals.forEachApply(function (i, v) {
+			if (min > v) {
+				min = v;
+			}
+			if (max < v) {
+				max = v;
+			}
+			sum += v;
+			count++;
+		});
+		sum = sum - count * min;
+		return evals.mapApply(function (i, v) {
+			return [i, (v - min) / sum];
+		}).toArray();
+	},
+
 	/** To `classify` a `game` state is to pick the class with greater evaluation. If more than one
 	has the greatest evaluation, one of these is chosen at random.
 	*/
@@ -155,52 +181,15 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** An `actionClassifier` is a game classifier that uses the game's possible actions as the
 	classes into which classify any game state.
 	*/
-	'static actionClassifier': unimplemented('GameClassifier', 'static actionClassifier(gameModel)')
+	'static actionClassifier': unimplemented('GameClassifier',
+		'static actionClassifier(gameModel)'),
+
+	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
+	classes into which classify any game state.
+	*/
+	'static resultClassifier': unimplemented('GameClassifier',
+		'static resultClassifier(gameModel, possibleResults)')
 }); // declare GameClassifier
-
-
-/** # Classifiers
-
-*/
-
-/** ## Linear classifier ###########################################################################
-
-*/
-var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
-	constructor: function LinearClassifier(parameters) {
-		GameClassifier.call(this, parameters);
-		var featureCount = this.gameModel.featureRanges().length;
-		this.__parameters__ = Iterable.range(this.classes.length).map(function (i) {
-			return parameters.slice(i * featureCount, (i + 1) * featureCount);
-		}).toArray();
-	},
-
-	evaluate: function evaluate(game, player) {
-		var sum = 0,
-			features = this.gameModel.normalizedFeatures(game, player),
-			products = iterable(this.__parameters__).map(function (params) {
-				var r = Iterable.zip(params, features).mapApply(function (w, x) {
-					return w * x;
-				}).sum();
-				sum += r;
-				return r;
-			}).toArray();
-		return products.map(function (y, i) {
-			return [i, y / sum];
-		});
-	},
-
-	'static actionClassifier': function actionClassifier(gameModel) {
-		var featureCount = gameModel.featureRanges().length,
-			classes = gameModel.possibleActions(),
-			paramCount = featureCount * classes.length;
-		return declare(this, {
-			gameModel: gameModel,
-			classes: classes,
-			parameterRanges: Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray()
-		});
-	}
-}); // declare LinearClassifier
 
 
 /** # Players
@@ -239,6 +228,124 @@ var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
 		return classifier.random.choice(selected);
 	}
 }); // declare ActionClassifierPlayer
+
+/** ## Result classifier player ####################################################################
+
+`ResultClassifierPlayer`s are simple players that use the given classifier to directly choose the
+action to make. The game `classifier` must be set up to use the game's possible actions as the
+classes into which classify any game state.
+*/
+var ResultClassifierPlayer = exports.ResultClassifierPlayer = declare(HeuristicPlayer, {
+	constructor: function ResultClassifierPlayer(params) {
+		HeuristicPlayer.call(this, params);
+		this.classifier = params.classifier;
+	},
+
+	/** Heuristic functions based on result classifiers return a normalized weighted average of the
+	classifier's evaluation. Each class is assumed to have a numerical value.
+	*/
+	'static heuristic': function (classifier, game, role) {
+		var resultBounds = game.resultBounds(),
+			divisor = Math.max(Math.abs(resultBounds[0]), Math.abs(resultBounds[1])) * 1.1,
+			classes = classifier.classes,
+			evals = classifier.normalizedEvaluate(game, role),
+			result = iterable(evals).map(function (c) {
+				return classes[c[0]] * c[1];
+			}).sum() / divisor;
+		return result;
+	},
+
+	heuristic: function (game, player) {
+		return this.constructor.heuristic(this.classifier, game, player);
+	}
+}); // declare ResultClassifierPlayer
+
+//TODO Move filter with action classifier.
+
+
+/** # Classifiers
+
+This library provides the following types of classifiers.
+*/
+
+/** ## Linear classifier ###########################################################################
+
+A [linear classifier](https://en.wikipedia.org/wiki/Linear_classifier) selects a class for an
+game state based on a linear combination of its features.
+*/
+var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
+	constructor: function LinearClassifier(parameters) {
+		GameClassifier.call(this, parameters);
+		var featureCount = this.gameModel.featureRanges().length;
+		this.__parameters__ = Iterable.range(this.classes.length).map(function (i) {
+			return parameters.slice(i * featureCount, (i + 1) * featureCount);
+		}).toArray();
+	},
+
+	/** Every class has a vector with a weight for every feature. A linear classifier is evaluated
+	by calculating the product of this weight vector and the feature vector for every class.
+	*/
+	evaluate: function evaluate(game, player) {
+		var features = this.gameModel.normalizedFeatures(game, player);
+		return iterable(this.__parameters__).map(function (params, i) {
+				var r = Iterable.zip(params, features).mapApply(function (w, x) {
+					return w * x;
+				}).sum();
+				return [i, r];
+			}).toArray();
+	},
+
+	/** An action classifier based on a linear classifier has as many parameters as the product of
+	the feature count by the class count, i.e. the amount of possible actions in the game model.
+	*/
+	'static actionClassifier': function actionClassifier(gameModel) {
+		var featureCount = gameModel.featureRanges().length,
+			classes = gameModel.possibleActions(),
+			paramCount = featureCount * classes.length;
+		return declare(this, {
+			gameModel: gameModel,
+			classes: classes,
+			parameterRanges: Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
+
+			/** The player used by the linear action classifier is `ActionClassifierPlayer`.
+			*/
+			player: function player(params) {
+				return new ActionClassifierPlayer(Object.assign(params || {}, {
+					classifier: this
+				}));
+			}
+		});
+	},
+
+	/** A result classifier based on a linear classifier has as many parameters as the product of
+	the feature count by the class count, i.e. the amount of possible results in the game model.
+	*/
+	'static resultClassifier': function resultClassifier(gameModel, possibleResults) {
+		var featureCount = gameModel.featureRanges().length,
+			classes = possibleResults || gameModel.possibleResults(),
+			paramCount = featureCount * classes.length;
+		return declare(this, {
+			gameModel: gameModel,
+			classes: classes,
+			parameterRanges: Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
+
+			/** If an `horizon` parameter is given, the player used by the linear result
+			classifier is an `AlphaBetaPlayer` with an heuristic that uses the classifier. Else
+			the `ResultClassifierPlayer` is used.
+			*/
+			player: function player(params) {
+				params = Object.assign(params || {}, {
+					classifier: this
+				});
+				if (params.horizon) {
+					params.heuristic = ResultClassifierPlayer.heuristic.bind(null, this);
+					return new ludorum.players.AlphaBetaPlayer(params);
+				}
+				return new ResultClassifierPlayer(params);
+			}
+		});
+	}
+}); // declare LinearClassifier
 
 
 // See __prologue__.js
