@@ -5,7 +5,8 @@
 			'creatartis-base': '/base/tests/lib/creatartis-base.min',
 			'sermat': '/base/tests/lib/sermat-umd',
 			'ludorum': '/base/tests/lib/ludorum',
-			'ludorum-player-ml': '/base/tests/lib/ludorum-player-ml'
+			'ludorum-player-ml': '/base/tests/lib/ludorum-player-ml',
+			'ludorum-game-mancala': '/base/tests/lib/ludorum-game-mancala'
 		}
 	});
 	require(Object.keys(window.__karma__.files) // Dynamically load all test files

@@ -7,7 +7,7 @@ module.exports = function (grunt) {
 
 	require('creatartis-grunt').config(grunt, {
 		sourceNames: ['__prologue__',
-				'core', 'players', 'classifiers',
+				'core', 'players', 'classifiers', 'training',
 			'__epilogue__'],
 		deps: [
 			{ name: 'creatartis-base', id: 'base',
@@ -16,6 +16,10 @@ module.exports = function (grunt) {
 				path: 'node_modules/sermat/build/sermat-umd.js' },
 			{ name: 'ludorum', id: 'ludorum',
 				path: 'node_modules/ludorum/build/ludorum.js' }
+		],
+		otherCopy: [
+			{ src: 'node_modules/@creatartis/ludorum-game-mancala/build/ludorum-game-mancala.js',
+				dest: 'tests/lib/ludorum-game-mancala.js', nonull: true }
 		]
 	});
 

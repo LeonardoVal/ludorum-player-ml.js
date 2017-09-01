@@ -31,7 +31,8 @@
 	},
 	"devDependencies": {
 		"creatartis-grunt": "~0.0.3",
-		"capataz-inveniemus": "~0.0.1"
+		"capataz-inveniemus": "~0.0.1",
+		"@creatartis/ludorum-game-mancala": "~0.1.0"
 	},
 	"scripts": {}
 }
