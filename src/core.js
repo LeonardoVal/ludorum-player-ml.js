@@ -53,6 +53,14 @@ var GameModel = exports.GameModel = declare({
 			.mapApply(function (f, r) {
 				return (f - r.min) / (r.max - r.min) * d + min;
 			}).toArray();
+	},
+
+	/** Some game model may find useful (or have to) reduce the amount of possible actions. The
+	actual move may be reconstructed given the game state, and the role that the player based on
+	the classifier is playing. By default, the action is returned as given.
+	*/
+	customizeAction: function customizeAction(action, game, role) {
+		return action;
 	}
 }); // declare GameModel
 
@@ -107,7 +115,7 @@ var GameClassifier = exports.GameClassifier = declare({
 	},
 
 	/** The normalization makes the evaluations for all classes fit in the [0,1] range, adding up
-	to 1. 
+	to 1.
 	*/
 	normalizedEvaluate: function normalizedEvaluate(game, player) {
 		var evals = iterable(this.evaluate(game, player)),
@@ -147,12 +155,49 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** An `actionClassifier` is a game classifier that uses the game's possible actions as the
 	classes into which classify any game state.
 	*/
-	'static actionClassifier': unimplemented('GameClassifier',
-		'static actionClassifier(gameModel)'),
+	'static actionClassifier': function actionClassifier(ClassifierType, gameModel, parameterRanges) {
+		raiseIf(typeof ClassifierType !== 'function', "Invalid ClassifierType!");
+		raiseIf(!parameterRanges, "Invalid parameterRanges!");
+		return declare(ClassifierType, {
+			gameModel: gameModel,
+			classes: gameModel.possibleActions(),
+			parameterRanges: parameterRanges,
+
+			/** The player used by an action classifier is `ActionClassifierPlayer` by default.
+			*/
+			player: function player(params) {
+				return new ActionClassifierPlayer(Object.assign(params || {}, {
+					classifier: this
+				}));
+			}
+		});
+	},
 
 	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
 	classes into which classify any game state.
 	*/
-	'static resultClassifier': unimplemented('GameClassifier',
-		'static resultClassifier(gameModel, possibleResults)')
+	'static resultClassifier': function resultClassifier(ClassifierType, gameModel, parameterRanges, possibleResults) {
+		raiseIf(typeof ClassifierType !== 'function', "Invalid ClassifierType!");
+		raiseIf(!parameterRanges, "Invalid parameterRanges!");
+		return declare(ClassifierType, {
+			gameModel: gameModel,
+			classes: possibleResults || gameModel.possibleResults(),
+			parameterRanges: parameterRanges,
+
+			/** If an `horizon` parameter is given, the player used by the classifier is an
+			`AlphaBetaPlayer` with an heuristic that uses the classifier. Else the
+			`ResultClassifierPlayer` is used.
+			*/
+			player: function player(params) {
+				params = Object.assign(params || {}, {
+					classifier: this
+				});
+				if (params.hasOwnProperty('horizon')) {
+					params.heuristic = ResultClassifierPlayer.heuristic.bind(null, this);
+					return new ludorum.players.AlphaBetaPlayer(params);
+				}
+				return new ResultClassifierPlayer(params);
+			}
+		});
+	}
 }); // declare GameClassifier

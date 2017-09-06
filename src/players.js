@@ -23,13 +23,16 @@ var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
 	decision: function decision(game, role) {
 		var validMoves = game.moves()[role],
 			classifier = this.classifier,
+			gameModel = classifier.gameModel,
 			classes = classifier.classes,
-			selected = iterable(classifier.evaluate(game, role)).filter(function (c) {
-					return validMoves.indexOf(classes[c[0]]) >= 0;
+			selected = iterable(classifier.evaluate(game, role)).map(function (c) {
+					return [gameModel.customizeAction(classes[c[0]], game, role), c[1]];
+				}).filter(function (c) {
+					return validMoves.indexOf(c[0]) >= 0;
 				}).greater(function (c) {
 					return c[1];
 				}).map(function (c) {
-					return classes[c[0]];
+					return c[0];
 				});
 		return classifier.random.choice(selected);
 	}
