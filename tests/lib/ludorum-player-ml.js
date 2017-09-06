@@ -87,6 +87,14 @@ var GameModel = exports.GameModel = declare({
 			.mapApply(function (f, r) {
 				return (f - r.min) / (r.max - r.min) * d + min;
 			}).toArray();
+	},
+
+	/** Some game model may find useful (or have to) reduce the amount of possible actions. The
+	actual move may be reconstructed given the game state, and the role that the player based on
+	the classifier is playing. By default, the action is returned as given.
+	*/
+	customizeAction: function customizeAction(action, game, role) {
+		return action;
 	}
 }); // declare GameModel
 
@@ -141,7 +149,7 @@ var GameClassifier = exports.GameClassifier = declare({
 	},
 
 	/** The normalization makes the evaluations for all classes fit in the [0,1] range, adding up
-	to 1. 
+	to 1.
 	*/
 	normalizedEvaluate: function normalizedEvaluate(game, player) {
 		var evals = iterable(this.evaluate(game, player)),
@@ -181,14 +189,51 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** An `actionClassifier` is a game classifier that uses the game's possible actions as the
 	classes into which classify any game state.
 	*/
-	'static actionClassifier': unimplemented('GameClassifier',
-		'static actionClassifier(gameModel)'),
+	'static actionClassifier': function actionClassifier(ClassifierType, gameModel, parameterRanges) {
+		raiseIf(typeof ClassifierType !== 'function', "Invalid ClassifierType!");
+		raiseIf(!parameterRanges, "Invalid parameterRanges!");
+		return declare(ClassifierType, {
+			gameModel: gameModel,
+			classes: gameModel.possibleActions(),
+			parameterRanges: parameterRanges,
+
+			/** The player used by an action classifier is `ActionClassifierPlayer` by default.
+			*/
+			player: function player(params) {
+				return new ActionClassifierPlayer(Object.assign(params || {}, {
+					classifier: this
+				}));
+			}
+		});
+	},
 
 	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
 	classes into which classify any game state.
 	*/
-	'static resultClassifier': unimplemented('GameClassifier',
-		'static resultClassifier(gameModel, possibleResults)')
+	'static resultClassifier': function resultClassifier(ClassifierType, gameModel, parameterRanges, possibleResults) {
+		raiseIf(typeof ClassifierType !== 'function', "Invalid ClassifierType!");
+		raiseIf(!parameterRanges, "Invalid parameterRanges!");
+		return declare(ClassifierType, {
+			gameModel: gameModel,
+			classes: possibleResults || gameModel.possibleResults(),
+			parameterRanges: parameterRanges,
+
+			/** If an `horizon` parameter is given, the player used by the classifier is an
+			`AlphaBetaPlayer` with an heuristic that uses the classifier. Else the
+			`ResultClassifierPlayer` is used.
+			*/
+			player: function player(params) {
+				params = Object.assign(params || {}, {
+					classifier: this
+				});
+				if (params.hasOwnProperty('horizon')) {
+					params.heuristic = ResultClassifierPlayer.heuristic.bind(null, this);
+					return new ludorum.players.AlphaBetaPlayer(params);
+				}
+				return new ResultClassifierPlayer(params);
+			}
+		});
+	}
 }); // declare GameClassifier
 
 
@@ -217,13 +262,16 @@ var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
 	decision: function decision(game, role) {
 		var validMoves = game.moves()[role],
 			classifier = this.classifier,
+			gameModel = classifier.gameModel,
 			classes = classifier.classes,
-			selected = iterable(classifier.evaluate(game, role)).filter(function (c) {
-					return validMoves.indexOf(classes[c[0]]) >= 0;
+			selected = iterable(classifier.evaluate(game, role)).map(function (c) {
+					return [gameModel.customizeAction(classes[c[0]], game, role), c[1]];
+				}).filter(function (c) {
+					return validMoves.indexOf(c[0]) >= 0;
 				}).greater(function (c) {
 					return c[1];
 				}).map(function (c) {
-					return classes[c[0]];
+					return c[0];
 				});
 		return classifier.random.choice(selected);
 	}
@@ -263,12 +311,7 @@ var ResultClassifierPlayer = exports.ResultClassifierPlayer = declare(HeuristicP
 //TODO Move filter with action classifier.
 
 
-/** # Classifiers
-
-This library provides the following types of classifiers.
-*/
-
-/** ## Linear classifier ###########################################################################
+/** # Linear classifier
 
 A [linear classifier](https://en.wikipedia.org/wiki/Linear_classifier) selects a class for an
 game state based on a linear combination of its features.
@@ -302,19 +345,9 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 		var featureCount = gameModel.featureRanges().length,
 			classes = gameModel.possibleActions(),
 			paramCount = featureCount * classes.length;
-		return declare(this, {
-			gameModel: gameModel,
-			classes: classes,
-			parameterRanges: Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
-
-			/** The player used by the linear action classifier is `ActionClassifierPlayer`.
-			*/
-			player: function player(params) {
-				return new ActionClassifierPlayer(Object.assign(params || {}, {
-					classifier: this
-				}));
-			}
-		});
+		return GameClassifier.actionClassifier(this, gameModel,
+			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray()
+		);
 	},
 
 	/** A result classifier based on a linear classifier has as many parameters as the product of
@@ -324,26 +357,9 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 		var featureCount = gameModel.featureRanges().length,
 			classes = possibleResults || gameModel.possibleResults(),
 			paramCount = featureCount * classes.length;
-		return declare(this, {
-			gameModel: gameModel,
-			classes: classes,
-			parameterRanges: Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
-
-			/** If an `horizon` parameter is given, the player used by the linear result
-			classifier is an `AlphaBetaPlayer` with an heuristic that uses the classifier. Else
-			the `ResultClassifierPlayer` is used.
-			*/
-			player: function player(params) {
-				params = Object.assign(params || {}, {
-					classifier: this
-				});
-				if (params.horizon) {
-					params.heuristic = ResultClassifierPlayer.heuristic.bind(null, this);
-					return new ludorum.players.AlphaBetaPlayer(params);
-				}
-				return new ResultClassifierPlayer(params);
-			}
-		});
+		return GameClassifier.actionClassifier(this, gameModel,
+			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
+			possibleResults);
 	}
 }); // declare LinearClassifier
 
@@ -366,9 +382,10 @@ exports.training = {
 
 			constructor: function TrainingProblem(params) {
 				initialize(this, params)
+					.func('ClassifierType')
 					.integer('precision', { coerce: true, ignore: true })
 					.integer('matchCount', { coerce: true, ignore: true })
-					.func('ClassifierType', { });
+					.array('opponents', { ignore: true });
 
 				var precision = this.precision,
 					parameterRanges = this.ClassifierType.prototype.parameterRanges,
@@ -381,13 +398,25 @@ exports.training = {
 					})
 				}));
 
-				//FIXME
-				this.Element.prototype.emblem = function emblem() {
-					return 'Element[\"'+ this.values().map(function (v) {
-						return String.fromCharCode(v + 0xB0);
-					}).join('') +'\" '+ this.evaluation +']';
+				this.Element.prototype.emblem = function emblem() { //FIXME
+					var evaluation = this.evaluation === null ? '\u22A5' :
+							this.evaluation.map(function (e) {
+								return Math.round(e * 1e4) / 1e4;
+							}).join(','),
+						values = this.values().map(function (v) {
+							return String.fromCharCode((v |0) + 0x4DC0);
+						}).join('');
+					return '[Element '+ evaluation +' '+ values +']';
 				};
 			},
+
+			opponents: [
+				new ludorum.players.RandomPlayer({ name: 'Random' }),
+				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h1)', horizon: 0 }),
+				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h2)', horizon: 1 }),
+				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h3)', horizon: 2 }),
+				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h4)', horizon: 3 })
+			],
 
 			mapping: function mapping(element) {
 				var precision = this.precision,
@@ -400,16 +429,18 @@ exports.training = {
 				return new this.ClassifierType(params);
 			},
 
+			player: function player(classifier) {
+				return classifier.player({ name: 'Trainee' });
+			},
+
 			evaluation: function evaluation(element) {
-				var playerName = 'Player:'+ element,
-					game = this.ClassifierType.prototype.gameModel.game,
+				var game = this.ClassifierType.prototype.gameModel.game,
 					classifier = this.mapping(element),
-					player = classifier.player({ name: playerName }),
-					opponents = [new RandomPlayer({ name: 'RandomPlayer' })],
-					tournament = new Measurement(game, [player], opponents, this.matchCount);
+					player = this.player(classifier),
+					tournament = new Measurement(game, [player], this.opponents, this.matchCount);
 				return tournament.run().then(function () {
 					var stats = tournament.statistics;
-					return [stats.average({ key: 'results', player: playerName })];
+					return [stats.average({ key: 'results', player: player.name })];
 				});
 			}
 		}); // declare TrainingProblem
