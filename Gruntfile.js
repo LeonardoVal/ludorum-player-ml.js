@@ -7,7 +7,7 @@ module.exports = function (grunt) {
 
 	require('creatartis-grunt').config(grunt, {
 		sourceNames: ['__prologue__',
-				'core', 'players', 'classifiers', 'training',
+				'core', 'players', 'linear-classifiers', 'training',
 			'__epilogue__'],
 		deps: [
 			{ name: 'creatartis-base', id: 'base',
