@@ -10,7 +10,7 @@
 			GameModel.call(this, game || new ludorum.games.TicTacToe());
 		},
 
-		__possibleActions__: [0,1,2,3,4,5,6,7,8],
+		__actionClasses__: [0,1,2,3,4,5,6,7,8],
 
 		__featureRanges__: Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
 
