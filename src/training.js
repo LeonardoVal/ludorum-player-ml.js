@@ -11,8 +11,8 @@ exports.training = {
 		this.TrainingProblem = declare(Problem, {
 			random: base.Randomness.DEFAULT,
 			objectives: [+Infinity],
-			precision: 100,
-			matchCount: 30,
+			precision: 10,
+			matchCount: 3,
 
 			constructor: function TrainingProblem(params) {
 				initialize(this, params)
@@ -20,6 +20,7 @@ exports.training = {
 					.integer('precision', { coerce: true, ignore: true })
 					.integer('matchCount', { coerce: true, ignore: true })
 					.array('opponents', { ignore: true });
+				this.opponents = this.__initOpponents__(this.opponents);
 
 				var precision = this.precision,
 					parameterRanges = this.ClassifierType.prototype.parameterRanges,
@@ -33,7 +34,7 @@ exports.training = {
 				}));
 
 				this.Element.prototype.emblem = function emblem() { //FIXME
-					var evaluation = this.evaluation === null ? '\u22A5' :
+					var evaluation = this.evaluation === null ? '?' :
 							this.evaluation.map(function (e) {
 								return Math.round(e * 1e4) / 1e4;
 							}).join(','),
@@ -42,15 +43,55 @@ exports.training = {
 						}).join('');
 					return '[Element '+ evaluation +' '+ values +']';
 				};
+				this.Element.prototype.evaluate = function evaluate() {
+					return Future.then(this.problem.evaluation(this), function (e) {
+						if (this.__evaluationCount__) {
+							e = (elem.evaluation * (this.__evaluationCount__ - 1) + e) /
+								this.__evaluationCount__;
+						}
+						this.__evaluationCount__ = (this.__evaluationCount__ |0) + 1;
+						elem.evaluation = e;
+						raiseIf(elem.evaluation === null, 'The evaluation of ', elem, ' is null!');
+						return elem.evaluation;
+					});
+				};
 			},
 
-			opponents: [
-				new ludorum.players.RandomPlayer({ name: 'Random' }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h1)', horizon: 0 }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h2)', horizon: 1 }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h3)', horizon: 2 }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h4)', horizon: 3 })
-			],
+			'dual opponentFromString': function opponentFromString(str) {
+				str = str.toLowerCase();
+				if (str === 'random') {
+					return new ludorum.players.RandomPlayer({ name: 'Random' });
+				} else if (/^mmab\d+$/.test(str)) {
+					var h = +str.substr(4);
+					return new ludorum.players.AlphaBetaPlayer({
+						name: 'MM\u03B1\u03B2('+ h +')',
+						horizon: h-1
+					});
+				} else if (/^mcts\d+$/.test(str)) {
+					var s = +str.substr(4);
+					return new ludorum.players.MonteCarloPlayer({
+						name: 'MCTS('+ s +')',
+						simulationCount: s,
+						timeCap: +Infinity
+					});
+				} else {
+					raise("Unknown opponent '"+ str +"'!");
+				}
+			},
+
+			__initOpponents__: function __initOpponents__(opponents) {
+				var self = this;
+				return opponents.map(function (opponent, i) {
+					if (typeof opponent === 'string') {
+						opponent = self.opponentFromString(opponent);
+					}
+					raiseIf(!opponent || !(opponent instanceof ludorum.Player),
+						"Invalid opponent player #", i, "!");
+					return opponent;
+				});
+			},
+
+			opponents: ['random'],
 
 			mapping: function mapping(element) {
 				var precision = this.precision,
@@ -76,6 +117,25 @@ exports.training = {
 					var stats = tournament.statistics;
 					return [stats.average({ key: 'results', player: player.name })];
 				});
+			},
+
+			evaluate: function evaluate(elements) {
+				return Problem.prototype.evaluate.call(this, elements, true); // Reevaluate.
+			},
+
+			geneticAlgorithm: function geneticAlgorithm(params) {
+				var mh = new inveniemus.metaheuristics.GeneticAlgorithm(Object.assign({
+					problem: this,
+					mutationRate: 0.25,
+					size: 10,
+					steps: 10
+				}, params));
+				mh.events.on('advanced', function (mh) { // Eliminate duplicates.
+					while (mh.state.length < mh.size) {
+						mh.state.push(new mh.problem.Element());
+					}
+				});
+				return mh;
 			}
 		}); // declare TrainingProblem
 
