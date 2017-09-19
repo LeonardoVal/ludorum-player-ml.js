@@ -4,7 +4,7 @@
 			} else if (typeof exports === 'object' && module.exports) {
 				module.exports = init(require("creatartis-base"),require("sermat"),require("ludorum")); // CommonJS module.
 			} else {
-				this.Sermat = init(this.base,this.Sermat,this.ludorum); // Browser.
+				this["ludorum-player-ml"] = init(this.base,this.Sermat,this.ludorum); // Browser.
 			}
 		}).call(this,/** Library ludorum-classifier-player wrapper and layout.
 */
@@ -49,17 +49,25 @@ var GameModel = exports.GameModel = declare({
 	/** Classifiers that use the game's actions as classes must know the set of all possible
 	actions that any player can make in any possible game state.
 	*/
-	possibleActions: function possibleActions() {
-		return this.__possibleActions__;
+	actionClasses: function actionClasses() {
+		return this.__actionClasses__;
+	},
+
+	actionForClass: function actionForClass(clazz, game, role) {
+		return clazz;
 	},
 
 	/** Classifiers that use the game's results as classes must know the set of all posible results
 	that any possible match can end with for all players.
 	*/
-	__possibleResults__: [-1, 0, 1],
+	__resultClasses__: [-1, 0, 1],
 
-	possibleResults: function possibleResults() {
-		return this.__possibleResults__;
+	resultClasses: function resultClasses() {
+		return this.__resultClasses__;
+	},
+
+	resultForClass: function resultForClass(clazz, game, role) {
+		return clazz;
 	},
 
 	/** Classifiers take as inputs a set of features that describe every possible game state. Every
@@ -87,14 +95,6 @@ var GameModel = exports.GameModel = declare({
 			.mapApply(function (f, r) {
 				return (f - r.min) / (r.max - r.min) * d + min;
 			}).toArray();
-	},
-
-	/** Some game model may find useful (or have to) reduce the amount of possible actions. The
-	actual move may be reconstructed given the game state, and the role that the player based on
-	the classifier is playing. By default, the action is returned as given.
-	*/
-	customizeAction: function customizeAction(action, game, role) {
-		return action;
 	}
 }); // declare GameModel
 
@@ -194,7 +194,7 @@ var GameClassifier = exports.GameClassifier = declare({
 		raiseIf(!parameterRanges, "Invalid parameterRanges!");
 		return declare(ClassifierType, {
 			gameModel: gameModel,
-			classes: gameModel.possibleActions(),
+			classes: gameModel.actionClasses(),
 			parameterRanges: parameterRanges,
 
 			/** The player used by an action classifier is `ActionClassifierPlayer` by default.
@@ -210,12 +210,12 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
 	classes into which classify any game state.
 	*/
-	'static resultClassifier': function resultClassifier(ClassifierType, gameModel, parameterRanges, possibleResults) {
+	'static resultClassifier': function resultClassifier(ClassifierType, gameModel, parameterRanges, resultClasses) {
 		raiseIf(typeof ClassifierType !== 'function', "Invalid ClassifierType!");
 		raiseIf(!parameterRanges, "Invalid parameterRanges!");
 		return declare(ClassifierType, {
 			gameModel: gameModel,
-			classes: possibleResults || gameModel.possibleResults(),
+			classes: resultClasses || gameModel.resultClasses(),
 			parameterRanges: parameterRanges,
 
 			/** If an `horizon` parameter is given, the player used by the classifier is an
@@ -265,7 +265,7 @@ var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
 			gameModel = classifier.gameModel,
 			classes = classifier.classes,
 			selected = iterable(classifier.evaluate(game, role)).map(function (c) {
-					return [gameModel.customizeAction(classes[c[0]], game, role), c[1]];
+					return [gameModel.actionForClass(classes[c[0]], game, role), c[1]];
 				}).filter(function (c) {
 					return validMoves.indexOf(c[0]) >= 0;
 				}).greater(function (c) {
@@ -343,7 +343,7 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 	*/
 	'static actionClassifier': function actionClassifier(gameModel) {
 		var featureCount = gameModel.featureRanges().length,
-			classes = gameModel.possibleActions(),
+			classes = gameModel.actionClasses(),
 			paramCount = featureCount * classes.length;
 		return GameClassifier.actionClassifier(this, gameModel,
 			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray()
@@ -355,9 +355,9 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 	*/
 	'static resultClassifier': function resultClassifier(gameModel, possibleResults) {
 		var featureCount = gameModel.featureRanges().length,
-			classes = possibleResults || gameModel.possibleResults(),
+			classes = possibleResults || gameModel.resultClasses(),
 			paramCount = featureCount * classes.length;
-		return GameClassifier.actionClassifier(this, gameModel,
+		return GameClassifier.resultClassifier(this, gameModel,
 			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
 			possibleResults);
 	}
@@ -377,8 +377,8 @@ exports.training = {
 		this.TrainingProblem = declare(Problem, {
 			random: base.Randomness.DEFAULT,
 			objectives: [+Infinity],
-			precision: 100,
-			matchCount: 30,
+			precision: 10,
+			matchCount: 3,
 
 			constructor: function TrainingProblem(params) {
 				initialize(this, params)
@@ -386,6 +386,7 @@ exports.training = {
 					.integer('precision', { coerce: true, ignore: true })
 					.integer('matchCount', { coerce: true, ignore: true })
 					.array('opponents', { ignore: true });
+				this.opponents = this.__initOpponents__(this.opponents);
 
 				var precision = this.precision,
 					parameterRanges = this.ClassifierType.prototype.parameterRanges,
@@ -399,7 +400,7 @@ exports.training = {
 				}));
 
 				this.Element.prototype.emblem = function emblem() { //FIXME
-					var evaluation = this.evaluation === null ? '\u22A5' :
+					var evaluation = this.evaluation === null ? '?' :
 							this.evaluation.map(function (e) {
 								return Math.round(e * 1e4) / 1e4;
 							}).join(','),
@@ -408,15 +409,55 @@ exports.training = {
 						}).join('');
 					return '[Element '+ evaluation +' '+ values +']';
 				};
+				this.Element.prototype.evaluate = function evaluate() {
+					return Future.then(this.problem.evaluation(this), function (e) {
+						if (this.__evaluationCount__) {
+							e = (elem.evaluation * (this.__evaluationCount__ - 1) + e) /
+								this.__evaluationCount__;
+						}
+						this.__evaluationCount__ = (this.__evaluationCount__ |0) + 1;
+						elem.evaluation = e;
+						raiseIf(elem.evaluation === null, 'The evaluation of ', elem, ' is null!');
+						return elem.evaluation;
+					});
+				};
 			},
 
-			opponents: [
-				new ludorum.players.RandomPlayer({ name: 'Random' }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h1)', horizon: 0 }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h2)', horizon: 1 }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h3)', horizon: 2 }),
-				new ludorum.players.AlphaBetaPlayer({ name: '\u0391\u0392(h4)', horizon: 3 })
-			],
+			'dual opponentFromString': function opponentFromString(str) {
+				str = str.toLowerCase();
+				if (str === 'random') {
+					return new ludorum.players.RandomPlayer({ name: 'Random' });
+				} else if (/^mmab\d+$/.test(str)) {
+					var h = +str.substr(4);
+					return new ludorum.players.AlphaBetaPlayer({
+						name: 'MM\u03B1\u03B2('+ h +')',
+						horizon: h-1
+					});
+				} else if (/^mcts\d+$/.test(str)) {
+					var s = +str.substr(4);
+					return new ludorum.players.MonteCarloPlayer({
+						name: 'MCTS('+ s +')',
+						simulationCount: s,
+						timeCap: +Infinity
+					});
+				} else {
+					raise("Unknown opponent '"+ str +"'!");
+				}
+			},
+
+			__initOpponents__: function __initOpponents__(opponents) {
+				var self = this;
+				return opponents.map(function (opponent, i) {
+					if (typeof opponent === 'string') {
+						opponent = self.opponentFromString(opponent);
+					}
+					raiseIf(!opponent || !(opponent instanceof ludorum.Player),
+						"Invalid opponent player #", i, "!");
+					return opponent;
+				});
+			},
+
+			opponents: ['random'],
 
 			mapping: function mapping(element) {
 				var precision = this.precision,
@@ -442,6 +483,25 @@ exports.training = {
 					var stats = tournament.statistics;
 					return [stats.average({ key: 'results', player: player.name })];
 				});
+			},
+
+			evaluate: function evaluate(elements) {
+				return Problem.prototype.evaluate.call(this, elements, true); // Reevaluate.
+			},
+
+			geneticAlgorithm: function geneticAlgorithm(params) {
+				var mh = new inveniemus.metaheuristics.GeneticAlgorithm(Object.assign({
+					problem: this,
+					mutationRate: 0.25,
+					size: 10,
+					steps: 10
+				}, params));
+				mh.events.on('advanced', function (mh) { // Eliminate duplicates.
+					while (mh.state.length < mh.size) {
+						mh.state.push(new mh.problem.Element());
+					}
+				});
+				return mh;
 			}
 		}); // declare TrainingProblem
 
