@@ -26,7 +26,7 @@ var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
 			gameModel = classifier.gameModel,
 			classes = classifier.classes,
 			selected = iterable(classifier.evaluate(game, role)).map(function (c) {
-					return [gameModel.customizeAction(classes[c[0]], game, role), c[1]];
+					return [gameModel.actionForClass(classes[c[0]], game, role), c[1]];
 				}).filter(function (c) {
 					return validMoves.indexOf(c[0]) >= 0;
 				}).greater(function (c) {

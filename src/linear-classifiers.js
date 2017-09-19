@@ -30,7 +30,7 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 	*/
 	'static actionClassifier': function actionClassifier(gameModel) {
 		var featureCount = gameModel.featureRanges().length,
-			classes = gameModel.possibleActions(),
+			classes = gameModel.actionClasses(),
 			paramCount = featureCount * classes.length;
 		return GameClassifier.actionClassifier(this, gameModel,
 			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray()
@@ -42,9 +42,9 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 	*/
 	'static resultClassifier': function resultClassifier(gameModel, possibleResults) {
 		var featureCount = gameModel.featureRanges().length,
-			classes = possibleResults || gameModel.possibleResults(),
+			classes = possibleResults || gameModel.resultClasses(),
 			paramCount = featureCount * classes.length;
-		return GameClassifier.actionClassifier(this, gameModel,
+		return GameClassifier.resultClassifier(this, gameModel,
 			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
 			possibleResults);
 	}

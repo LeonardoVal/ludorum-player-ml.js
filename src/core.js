@@ -15,17 +15,25 @@ var GameModel = exports.GameModel = declare({
 	/** Classifiers that use the game's actions as classes must know the set of all possible
 	actions that any player can make in any possible game state.
 	*/
-	possibleActions: function possibleActions() {
-		return this.__possibleActions__;
+	actionClasses: function actionClasses() {
+		return this.__actionClasses__;
+	},
+
+	actionForClass: function actionForClass(clazz, game, role) {
+		return clazz;
 	},
 
 	/** Classifiers that use the game's results as classes must know the set of all posible results
 	that any possible match can end with for all players.
 	*/
-	__possibleResults__: [-1, 0, 1],
+	__resultClasses__: [-1, 0, 1],
 
-	possibleResults: function possibleResults() {
-		return this.__possibleResults__;
+	resultClasses: function resultClasses() {
+		return this.__resultClasses__;
+	},
+
+	resultForClass: function resultForClass(clazz, game, role) {
+		return clazz;
 	},
 
 	/** Classifiers take as inputs a set of features that describe every possible game state. Every
@@ -53,14 +61,6 @@ var GameModel = exports.GameModel = declare({
 			.mapApply(function (f, r) {
 				return (f - r.min) / (r.max - r.min) * d + min;
 			}).toArray();
-	},
-
-	/** Some game model may find useful (or have to) reduce the amount of possible actions. The
-	actual move may be reconstructed given the game state, and the role that the player based on
-	the classifier is playing. By default, the action is returned as given.
-	*/
-	customizeAction: function customizeAction(action, game, role) {
-		return action;
 	}
 }); // declare GameModel
 
@@ -160,7 +160,7 @@ var GameClassifier = exports.GameClassifier = declare({
 		raiseIf(!parameterRanges, "Invalid parameterRanges!");
 		return declare(ClassifierType, {
 			gameModel: gameModel,
-			classes: gameModel.possibleActions(),
+			classes: gameModel.actionClasses(),
 			parameterRanges: parameterRanges,
 
 			/** The player used by an action classifier is `ActionClassifierPlayer` by default.
@@ -176,12 +176,12 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
 	classes into which classify any game state.
 	*/
-	'static resultClassifier': function resultClassifier(ClassifierType, gameModel, parameterRanges, possibleResults) {
+	'static resultClassifier': function resultClassifier(ClassifierType, gameModel, parameterRanges, resultClasses) {
 		raiseIf(typeof ClassifierType !== 'function', "Invalid ClassifierType!");
 		raiseIf(!parameterRanges, "Invalid parameterRanges!");
 		return declare(ClassifierType, {
 			gameModel: gameModel,
-			classes: possibleResults || gameModel.possibleResults(),
+			classes: resultClasses || gameModel.resultClasses(),
 			parameterRanges: parameterRanges,
 
 			/** If an `horizon` parameter is given, the player used by the classifier is an
