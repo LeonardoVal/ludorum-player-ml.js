@@ -1,6 +1,9 @@
 /** # Training
 
 */
+"use strict";
+require('source-map-support').install();
+
 var capataz_inveniemus = require('capataz-inveniemus'),
 	inveniemus = require('inveniemus'),
 	capataz = require('capataz'),
@@ -16,7 +19,7 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml) {
 			ludorum_player_ml.GameModel.call(this, game || new ludorum.games.TicTacToe());
 		},
 
-		__possibleActions__: [0,1,2,3,4,5,6,7,8],
+		__actionClasses__: [0,1,2,3,4,5,6,7,8],
 
 		__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
 
@@ -32,10 +35,11 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml) {
 	}); // declare TicTacToeGameModel
 
 	return new training.TrainingProblem({
+		matchCount: 30,
 		ClassifierType: ludorum_player_ml.LinearClassifier.actionClassifier(
 			new TicTacToeGameModel()
-		)
-		/*ClassifierType: ludorum_player_ml.LinearClassifier.resultClassifier(
+		)/*,
+		ClassifierType: ludorum_player_ml.LinearClassifier.resultClassifier(
 			new TicTacToeGameModel(), [-1,+1]
 		)*/
 	});
@@ -55,14 +59,10 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml) {
 			+", "+ problemBuilder +');'
 		);
 	});
+
 	return capataz_inveniemus.distributeEvaluation({
 		server: server,
-		mh: new inveniemus.metaheuristics.GeneticAlgorithm({
-			problem: problemBuilder(base, inveniemus, ludorum, ludorum_player_ml),
-			mutationRate: 0.25,
-			size: 25,
-			steps: 25
-		}),
+		mh: problemBuilder(base, inveniemus, ludorum, ludorum_player_ml).geneticAlgorithm(),
 		imports: ['problem'],
 		fun: (function (problem, element) {
 			return problem.evaluation(element);
