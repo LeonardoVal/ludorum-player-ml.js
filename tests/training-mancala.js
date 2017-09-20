@@ -1,6 +1,9 @@
 /** # Training
 
 */
+"use strict";
+require('source-map-support').install();
+
 var capataz_inveniemus = require('capataz-inveniemus'),
 	inveniemus = require('inveniemus'),
 	capataz = require('capataz'),
