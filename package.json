@@ -26,14 +26,14 @@
 	],
 	"dependencies": {
 		"creatartis-base": "~0.1.7",
-		"ludorum": "~0.2.0",
+		"ludorum": "~0.2.1-alpha",
 		"sermat": "~0.0.8"
 	},
 	"devDependencies": {
 		"source-map-support": "~0.4.18",
-		"creatartis-grunt": "~0.0.5",
+		"creatartis-grunt": "~0.0.9",
 		"capataz-inveniemus": "~0.0.1",
-		"@creatartis/ludorum-game-mancala": "~0.1.0"
+		"@creatartis/ludorum-game-mancala": "~0.1.1"
 	},
 	"scripts": {}
 }
