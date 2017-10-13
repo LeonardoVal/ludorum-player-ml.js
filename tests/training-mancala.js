@@ -18,7 +18,7 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml, man
 
 	var MancalaGameModel = base.declare(ludorum_player_ml.GameModel, {
 		constructor: function MancalaGameModel(game) {
-			ludorum_player_ml.GameModel.call(this, game || new ludorum.games.Mancala());
+			ludorum_player_ml.GameModel.call(this, game || new mancala.Mancala());
 			this.__actionClasses__ = this.game.houses(this.game.players[0]);
 			this.__seedCount__ = base.iterable(this.game.board).sum();
 			this.__featureRanges__ = base.Iterable.repeat({ min: -1, max: +1 },
@@ -41,7 +41,7 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml, man
 
 	return new training.TrainingProblem({
 		opponents: ['random', 'mmab2', 'mmab4', 'mcts10', 'mcts50'],
-		matchCount: 10,
+		matchCount: 4,
 		ClassifierType: ludorum_player_ml.LinearClassifier.actionClassifier(
 			new MancalaGameModel()
 		)
@@ -64,7 +64,7 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml, man
 			'ludorum-player-ml', 'ludorum-game-mancala']) +", "+ problemBuilder +');'
 		);
 	});
-	var problem = problemBuilder(base, inveniemus, ludorum, ludorum_player_ml);
+	var problem = problemBuilder(base, inveniemus, ludorum, ludorum_player_ml, mancala);
 	console.log('Opponents: '+ Sermat.ser(problem.opponents, { mode: Sermat.BASIC_MODE })
 		.replace(/(\[|\}\),?)/g, '$1\n\t'));
 	return capataz_inveniemus.distributeEvaluation({
