@@ -481,7 +481,9 @@ exports.training = {
 					tournament = new Measurement(game, [player], this.opponents, this.matchCount);
 				return tournament.run().then(function () {
 					var stats = tournament.statistics;
-					return [stats.average({ key: 'results', player: player.name })];
+					return [ (stats.count({ key: 'victories', player: player.name }) -
+						stats.count({ key: 'defeats', player: player.name })) /
+						stats.count({ key: 'results', player: player.name }) ];
 				});
 			},
 
