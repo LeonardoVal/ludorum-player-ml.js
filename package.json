@@ -31,7 +31,7 @@
 	},
 	"devDependencies": {
 		"source-map-support": "~0.4.18",
-		"creatartis-grunt": "~0.0.9",
+		"creatartis-grunt": "~0.0.10",
 		"capataz-inveniemus": "~0.0.1",
 		"@creatartis/ludorum-game-mancala": "~0.1.1"
 	},
