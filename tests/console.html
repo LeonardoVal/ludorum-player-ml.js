@@ -3,36 +3,57 @@
 	<title>ludorum-classifier-player test console</title>
 	<meta charset="UTF-8"/>
 	<style>
-	body { font-family:"Merriweather","PT Serif",Georgia,"Times New Roman",serif; }
-	h1 { text-align:center; }
-	a { color:black; text-decoration:none; }
-	#reference tr td { padding: 0.5em; }
-	#reference tr td:nth-child(1) { font-family:"Courier New",Courier,monospace; background-color:black; color:white; }
-	#reference tr td:nth-child(1) a { color:white; }
+body { font-family:"Merriweather","PT Serif",Georgia,"Times New Roman",serif; }
+h1 { text-align:center; }
+a { color:black; text-decoration:none; }
+#reference tr td { padding: 0.5em; }
+#reference tr td:nth-child(1) { font-family:"Courier New",Courier,monospace; background-color:black; color:white; }
+#reference tr td:nth-child(1) a { color:white; }
 	</style>
 	<script type="text/javascript" src="lib/require.js"></script>
 </head><body onload="main();">
 	<h1><a href="https://github.com/LeonardoVal/ludorum-player-ml.js" target="_blank">ludorum-classifier-player</a> tester</h1>
-	<p>Open your browser Javascript console. In Windows use: Ctrl+Shift+J in Chrome, Ctrl+Shift+K in Firefox, F12 in Internet Explorer, Ctrl+Shift+I in Opera.</p>
+	<p>Open your browser Javascript console. In Windows use: Ctrl+Shift+J in Chrome, Ctrl+Shift+K in Firefox,
+		F12 in Internet Explorer, Ctrl+Shift+I in Opera.</p>
 	<table id="reference"><tr>
 		<td><a href="javascript:console.info('ludorum-player-ml');console.dir(ludorum_player_ml);">ludorum_player_ml</a></td>
-		<td>Automatic players based in statistical classification models for the Ludorum framework</td>
+		<td>Automatic players based in statistical classification models for the Ludorum framework.</td>
 	</tr><tr>
 		<td><a href="javascript:">
-var TTT_MODEL = new ludorum_player_ml.TicTacToeGameModel(),
-	TTT_CC = ludorum_classifier_player.LinearClassifier.actionClassifier(TTT_MODEL),
-	TTT_C = TTT_CC.randomClassifier(),
-	TTT_GAME = new ludorum.games.TicTacToe(),
-	TTT_PLAYER = new ludorum_player_ml.ActionClassifierPlayer({ classifier: TTT_C }),
-	MATCH = new ludorum.Match(TTT_GAME, [TTT_PLAYER, TTT_PLAYER]);
+var MODEL = new ludorum_player_ml.examples.TicTacToeGameModel();
 		</a></td>
-		<td>Automatic players based in statistical classification models for the Ludorum framework</td>
+		<td>A game model provides the necessary metadata to process the state of a game with a classifier.</td>
+	</tr><tr>
+		<td><a href="javascript:">
+var CLASSIFIER_TYPE = ludorum_player_ml.LinearClassifier.actionClassifier(MODEL);
+		</a></td>
+		<td>A <a href="https://en.wikipedia.org/wiki/Linear_classifier">linear classifier</a> selects a
+			class for a game state based on a linear combination of its features. Action classifiers use
+			the game possible actions (i.e. moves) as classes.</td>
+	</tr><tr>
+		<td><a href="javascript:">
+var CLASSIFIER = CLASSIFIER_TYPE.randomClassifier();
+		</a></td>
+		<td>Randomly defined action linear classifier, obviously not expected to play well.</td>
+	</tr><tr>
+		<td><a href="javascript:">
+var PLAYER = new ludorum_player_ml.ActionClassifierPlayer({ classifier: CLASSIFIER });
+		</a></td>
+		<td>An action classifier can be used to decide which action to take given a game state and a player.
+			This is what the <code>ActionClassifierPlayer</code> does.</td>
+	</tr><tr>
+		<td><a href="javascript:">
+var MATCH = new ludorum.Match(GAME, [PLAYER, PLAYER]);
+		</a></td>
+		<td>Test match between players based on a randomly defined action classifier.</td>
 	</tr></table>
-	<p style="text-align:center;"><a href="mailto:leonardo.val@creatartis.com">&copy; 2017 Leonardo Val</a> - <a href="https://github.com/LeonardoVal/ludorum-classifier-player.js" target="_blank">ludorum-classifier-player.js</a>
+	<p style="text-align:center;"><a href="mailto:leonardo.val@creatartis.com">&copy; 2017 Leonardo Val</a> -
+		<a href="https://github.com/LeonardoVal/ludorum-player-ml.js" target="_blank">ludorum-player-ml.js</a>
 	</p>
 <script type="text/javascript"> require(['require-config'], function (init) {
 	init(['creatartis-base', 'sermat', 'ludorum', 'ludorum-player-ml'],
 	function (base, Sermat, ludorum, ludorum_player_ml) {
+		window.GAME = new ludorum.games.TicTacToe();
 	});
 	Array.prototype.slice.call(document.querySelectorAll('#reference tr td a'))
 	.forEach(function (jsLink) {
