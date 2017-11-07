@@ -8,6 +8,7 @@ module.exports = function (grunt) {
 	require('creatartis-grunt').config(grunt, {
 		sourceNames: ['__prologue__',
 				'core', 'players', 'linear-classifiers', 'training',
+				'examples/tictactoe-model',
 			'__epilogue__'],
 		deps: [
 			{ id: 'creatartis-base', name: 'base' },

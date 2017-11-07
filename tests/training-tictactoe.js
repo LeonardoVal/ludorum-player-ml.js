@@ -12,27 +12,8 @@ var capataz_inveniemus = require('capataz-inveniemus'),
 	ludorum_player_ml = require('../build/ludorum-player-ml.js');
 
 var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml) {
-	var training = ludorum_player_ml.training.init(inveniemus);
-
-	var TicTacToeGameModel = base.declare(ludorum_player_ml.GameModel, {
-		constructor: function TicTacToeGameModel(game) {
-			ludorum_player_ml.GameModel.call(this, game || new ludorum.games.TicTacToe());
-		},
-
-		__actionClasses__: [0,1,2,3,4,5,6,7,8],
-
-		__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
-
-		features: function features(game, player) {
-			var players = game.players.map(function (p) {
-					return p.charAt(0);
-				}),
-				factor = player === players[0] ? +1 : -1;
-			return game.board.split('').map(function (sq) {
-				return (sq === players[0]) ? factor : (sq === players[1]) ? -factor : 0;
-			});
-		}
-	}); // declare TicTacToeGameModel
+	var training = ludorum_player_ml.training.init(inveniemus),
+		TicTacToeGameModel = ludorum_player_ml.examples.TicTacToeGameModel;
 
 	return new training.TrainingProblem({
 		matchCount: 30,

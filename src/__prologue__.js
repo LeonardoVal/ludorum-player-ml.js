@@ -15,10 +15,13 @@ function __init__(base, Sermat, ludorum){ "use strict";
 
 // Library layout. /////////////////////////////////////////////////////////////////////////////////
 	var exports = {
-		__package__: 'ludorum-classifier-player',
-		__name__: 'ludorum_classifier_player',
-		__init__: __init__,
-		__dependencies__: [base, Sermat, ludorum]
-	};
+			__package__: 'ludorum-player-ml',
+			__name__: 'ludorum_player_ml',
+			__init__: __init__,
+			__dependencies__: [base, Sermat, ludorum],
+
+			examples: { }
+		},
+		examples = exports.examples;
 
 // See __epilogue__.js
