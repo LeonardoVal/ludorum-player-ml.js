@@ -11,7 +11,7 @@ var capataz_inveniemus = require('capataz-inveniemus'),
 	base = require('creatartis-base'),
 	ludorum_player_ml = require('../build/ludorum-player-ml.js');
 
-var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml) {
+var problemBuilder = function (inveniemus, ludorum_player_ml) {
 	var training = ludorum_player_ml.training.init(inveniemus),
 		TicTacToeGameModel = ludorum_player_ml.examples.TicTacToeGameModel;
 
@@ -35,15 +35,14 @@ var problemBuilder = function (base, inveniemus, ludorum, ludorum_player_ml) {
 		logFile: base.Text.formatDate(null, '"./tests/logs/ludorum_player_ml-"yyyymmdd-hhnnss".txt"')
 	});
 	server.expressApp.get(server.config.staticRoute +'/problem.js', function (request, response) {
-		response.send("define("+
-			JSON.stringify(['creatartis-base', 'inveniemus', 'ludorum', 'ludorum-player-ml'])
-			+", "+ problemBuilder +');'
+		response.send("define("+ JSON.stringify(['inveniemus', 'ludorum-player-ml']) +", "+
+			problemBuilder +');'
 		);
 	});
 
 	return capataz_inveniemus.distributeEvaluation({
 		server: server,
-		mh: problemBuilder(base, inveniemus, ludorum, ludorum_player_ml).geneticAlgorithm(),
+		mh: problemBuilder(inveniemus, ludorum_player_ml).geneticAlgorithm(),
 		imports: ['problem'],
 		fun: (function (problem, element) {
 			return problem.evaluation(element);
