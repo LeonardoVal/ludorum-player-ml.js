@@ -199,5 +199,17 @@ var GameClassifier = exports.GameClassifier = declare({
 				return new ResultClassifierPlayer(params);
 			}
 		});
+	},
+
+	/** `randomClassifier` builds a classifier of this type with random parameters.
+	*/
+	'static randomClassifier': function randomClassifier(random) {
+		random = random || this.prototype.random;
+		var parameterRanges = this.prototype.parameterRanges;
+		raiseIf(!parameterRanges, "Parameter ranges are not defined!");
+		var params = parameterRanges.map(function (r) {
+			return random.random(r.min, r.max);
+		});
+		return new this(params);
 	}
 }); // declare GameClassifier
