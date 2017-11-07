@@ -6,6 +6,6 @@
 
 ## Development
 
-+ Add test training for Mancala.
++ Removed `tests/lib` folder, used by the training examples for the Capataz server.
 
 + Documentation.

@@ -23,11 +23,14 @@ function __init__(base, Sermat, ludorum){ "use strict";
 
 // Library layout. /////////////////////////////////////////////////////////////////////////////////
 	var exports = {
-		__package__: 'ludorum-classifier-player',
-		__name__: 'ludorum_classifier_player',
-		__init__: __init__,
-		__dependencies__: [base, Sermat, ludorum]
-	};
+			__package__: 'ludorum-player-ml',
+			__name__: 'ludorum_player_ml',
+			__init__: __init__,
+			__dependencies__: [base, Sermat, ludorum],
+
+			examples: { }
+		},
+		examples = exports.examples;
 
 // See __epilogue__.js
 
@@ -233,6 +236,18 @@ var GameClassifier = exports.GameClassifier = declare({
 				return new ResultClassifierPlayer(params);
 			}
 		});
+	},
+
+	/** `randomClassifier` builds a classifier of this type with random parameters.
+	*/
+	'static randomClassifier': function randomClassifier(random) {
+		random = random || this.prototype.random;
+		var parameterRanges = this.prototype.parameterRanges;
+		raiseIf(!parameterRanges, "Parameter ranges are not defined!");
+		var params = parameterRanges.map(function (r) {
+			return random.random(r.min, r.max);
+		});
+		return new this(params);
 	}
 }); // declare GameClassifier
 
@@ -510,6 +525,37 @@ exports.training = {
 		return this;
 	}
 };
+
+
+/** # TicTacToe model.
+
+Example of a game model for TicTacToe.
+*/
+examples.TicTacToeGameModel = base.declare(GameModel, {
+	constructor: function TicTacToeGameModel(game) {
+		GameModel.call(this, game || new ludorum.games.TicTacToe());
+	},
+
+	/** The action classes for TicTacToe map to all possible moves.
+	*/
+	__actionClasses__: [0,1,2,3,4,5,6,7,8],
+
+	/** A TicTacToe game has 9 features, one for each square in the board. An empty square has a
+	value of zero. A square marked by the opponent has a value of -1. Squares marked by the player
+	have a value of +1.
+	*/
+	__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
+
+	features: function features(game, player) {
+		var players = game.players.map(function (p) {
+				return p.charAt(0);
+			}),
+			factor = player === players[0] ? +1 : -1;
+		return game.board.split('').map(function (sq) {
+			return (sq === players[0]) ? factor : (sq === players[1]) ? -factor : 0;
+		});
+	}
+}); // declare TicTacToeGameModel
 
 
 // See __prologue__.js
