@@ -17,10 +17,7 @@ module.exports = function (grunt) {
 			{ id: 'ludorum' },
 			{ id: 'ludorum-game-mancala', dev: true, module: false,
 		 		path: 'node_modules/@creatartis/ludorum-game-mancala/build/ludorum-game-mancala.js' }
-		],
-		paths: {
-			test_lib: 'tests/lib/'
-		}
+		]
 	});
 
 	grunt.registerTask('default', ['build']);
