@@ -35,12 +35,8 @@ function __init__(base, Sermat, ludorum){ "use strict";
 // See __epilogue__.js
 
 
-/** # Core definitions.
 
-
-*/
-
-/** ## Game model ##################################################################################
+/** # Game model
 
 A game model provides the necessary metadata to process the state of a game with a classifier.
 */
@@ -101,7 +97,7 @@ var GameModel = exports.GameModel = declare({
 	}
 }); // declare GameModel
 
-/** ## Game classifier #############################################################################
+/** # Game classifier
 
 A game classifier is a classifier that takes its inputs from a game state and a player. The outputs
 (classes) can be different concepts, depending on the way the classifier is meant to be used.
@@ -109,7 +105,7 @@ A game classifier is a classifier that takes its inputs from a game state and a 
 var GameClassifier = exports.GameClassifier = declare({
 	/** All classifiers are defined by a list of numerical `parameters`.
 	*/
-	constructor: function Classifier(parameters) {
+	constructor: function GameClassifier(parameters) {
 		var parameterRanges = this.parameterRanges;
 		raiseIf(parameters.length !== parameterRanges.length, "Expected ", parameterRanges.length,
 			" parameters, but got ", parameters.length, "!");

@@ -7,7 +7,7 @@ module.exports = function (grunt) {
 
 	require('creatartis-grunt').config(grunt, {
 		sourceNames: ['__prologue__',
-				'core', 'players', 'linear-classifiers', 'training',
+				'game-models', 'game-classifiers', 'players', 'linear-classifiers', 'training',
 				'examples/tictactoe-model',
 			'__epilogue__'],
 		deps: [
