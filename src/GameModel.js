@@ -4,32 +4,38 @@
 A game model provides the necessary metadata to process the state of a game with a classifier.
 */
 var GameModel = exports.GameModel = declare({
-	constructor: function GameModel(game) {
-		this.game = game;
+	constructor: function GameModel(params) {
+		initialize(this, params)
+		/** TODO
+		*/
+			.object('game', { ignore: true })
+		;
 	},
 
 	/** Classifiers that use the game's actions as classes must know the set of all possible
-	actions that any player can make in any possible game state.
+	actions that any player can make in any possible game state. By default, all the actions for
+	the active player of the given game instance is used. 
 	*/
-	actionClasses: function actionClasses() {
-		return this.__actionClasses__;
+	actionClasses: function actionClasses(game) {
+		game = game || this.game;
+		return game.moves()[game.activePlayer()];
 	},
 
-	actionForClass: function actionForClass(clazz, game, role) {
-		return clazz;
+	actionForClass: function actionForClass(actionClass, game, role) {
+		return actionClass;
 	},
 
 	/** Classifiers that use the game's results as classes must know the set of all posible results
-	that any possible match can end with for all players.
+	that any possible match can end with for all players. By default, the bounds for the game 
+	results and zero are used.
 	*/
-	__resultClasses__: [-1, 0, 1],
-
-	resultClasses: function resultClasses() {
-		return this.__resultClasses__;
+	resultClasses: function resultClasses(game) {
+		game = game || this.game;
+		return base.Iterable.chain([0], game.resultBounds()).sorted().toArray();
 	},
 
-	resultForClass: function resultForClass(clazz, game, role) {
-		return clazz;
+	resultForClass: function resultForClass(resultClass, game, role) {
+		return resultClass;
 	},
 
 	/** Classifiers take as inputs a set of features that describe every possible game state. Every
@@ -42,9 +48,9 @@ var GameModel = exports.GameModel = declare({
 	/** In order to properly build a classifier, the amount of features and their possible values
 	(i.e. their ranges) must be known.
 	*/
-	featureRanges: function featureRanges() {
-		return this.__featureRanges__;
-	},
+	featureRanges: unimplemented('GameModel', 'featureRanges(game)'),
+
+	// ## Utilities ###############################################################################
 
 	/** Some classifiers use the features as they are calculated. Others may need to normalize
 	these values. By default features are normalized in the [0, 1] range.
