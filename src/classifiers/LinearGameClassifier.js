@@ -3,10 +3,11 @@
 A [linear classifier](https://en.wikipedia.org/wiki/Linear_classifier) selects a class for an
 game state based on a linear combination of its features.
 */
-var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
-	constructor: function LinearClassifier(parameters) {
-		GameClassifier.call(this, parameters);
-		var featureCount = this.gameModel.featureRanges().length;
+var LinearGameClassifier = exports.LinearGameClassifier = declare(ParametricalGameClassifier, {
+	constructor: function LinearGameClassifier(args) {
+		ParametricalGameClassifier.call(this, args);
+		var parameters = args && args.parameters,
+			featureCount = this.gameModel.featureRanges().length;
 		this.__parameters__ = Iterable.range(this.classes.length).map(function (i) {
 			return parameters.slice(i * featureCount, (i + 1) * featureCount);
 		}).toArray();
@@ -32,7 +33,7 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 		var featureCount = gameModel.featureRanges().length,
 			classes = gameModel.actionClasses(),
 			paramCount = featureCount * classes.length;
-		return GameClassifier.actionClassifier(this, gameModel,
+		return ParametricalGameClassifier.actionClassifier(this, gameModel,
 			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray()
 		);
 	},
@@ -44,8 +45,8 @@ var LinearClassifier = exports.LinearClassifier = declare(GameClassifier, {
 		var featureCount = gameModel.featureRanges().length,
 			classes = possibleResults || gameModel.resultClasses(),
 			paramCount = featureCount * classes.length;
-		return GameClassifier.resultClassifier(this, gameModel,
+		return ParametricalGameClassifier.resultClassifier(this, gameModel,
 			Iterable.repeat({ min: -1, max: +1 }, paramCount).toArray(),
 			possibleResults);
 	}
-}); // declare LinearClassifier
+}); // declare LinearGameClassifier
