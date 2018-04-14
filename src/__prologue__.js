@@ -20,7 +20,8 @@ function __init__(base, Sermat, ludorum){ "use strict";
 			__init__: __init__,
 			__dependencies__: [base, Sermat, ludorum],
 
-			examples: { }
+			examples: { },
+			training: { }
 		},
 		examples = exports.examples;
 
