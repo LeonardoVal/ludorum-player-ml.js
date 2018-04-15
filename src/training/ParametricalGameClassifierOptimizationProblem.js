@@ -1,20 +1,20 @@
-/** # Training
+/** # Parametrical game classifier optimization problem
 
 Player model adjustment using the Inveniemus framework.
 */
-exports.add_inveniemus = function add_inveniemus(inveniemus) {
+training.getParametricalGameClassifierOptimizationProblem = function getParametricalGameClassifierOptimizationProblem(inveniemus) {
 	inveniemus = inveniemus || require('inveniemus');
 	var Problem = inveniemus.Problem,
 		RandomPlayer = ludorum.players.RandomPlayer,
 		Measurement = ludorum.tournaments.Measurement;
 
-	exports.training.TrainingProblem = declare(Problem, {
+	var ParametricalGameClassifierOptimizationProblem = declare(Problem, {
 		random: base.Randomness.DEFAULT,
 		objectives: [+Infinity],
 		precision: 10,
 		matchCount: 3,
 
-		constructor: function TrainingProblem(params) {
+		constructor: function ParametricalGameClassifierOptimizationProblem(params) {
 			initialize(this, params)
 				.func('ClassifierType')
 				.integer('precision', { coerce: true, ignore: true })
@@ -26,7 +26,7 @@ exports.add_inveniemus = function add_inveniemus(inveniemus) {
 				parameterRanges = this.ClassifierType.prototype.parameterRanges,
 				game = this.ClassifierType.prototype.gameModel.game;
 			Problem.call(this, Object.assign(params, {
-				title: "TrainingProblem for "+ this.ClassifierType,
+				title: "Optimization of "+ this.ClassifierType,
 				description: "Training method based on inveniemus for "+ this.ClassifierType,
 				elementModel: parameterRanges.map(function (range) {
 					return { n: (range.max - range.min) * precision + 1 };
@@ -139,5 +139,7 @@ exports.add_inveniemus = function add_inveniemus(inveniemus) {
 			});
 			return mh;
 		}
-	}); // declare TrainingProblem
+	}); // declare ParametricalGameClassifierOptimizationProblem
+
+	return ParametricalGameClassifierOptimizationProblem;
 };

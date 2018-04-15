@@ -12,15 +12,16 @@ var capataz_inveniemus = require('capataz-inveniemus'),
 	ludorum_player_ml = require('../build/ludorum-player-ml.js');
 
 var problemBuilder = function problem(inveniemus, ludorum_player_ml) {
-	ludorum_player_ml.add_inveniemus(inveniemus);
-	var TicTacToeGameModel = ludorum_player_ml.examples.TicTacToeGameModel;
+	var TicTacToeGameModel = ludorum_player_ml.examples.TicTacToeGameModel,
+		TrainingProblem = ludorum_player_ml.training
+			.getParametricalGameClassifierOptimizationProblem(inveniemus);
 
-	return new ludorum_player_ml.training.TrainingProblem({
+	return new TrainingProblem({
 		matchCount: 30,
-		ClassifierType: ludorum_player_ml.LinearClassifier.actionClassifier(
+		ClassifierType: ludorum_player_ml.LinearGameClassifier.actionClassifier(
 			new TicTacToeGameModel()
 		)/*,
-		ClassifierType: ludorum_player_ml.LinearClassifier.resultClassifier(
+		ClassifierType: ludorum_player_ml.LinearGameClassifier.resultClassifier(
 			new TicTacToeGameModel(), [-1,+1]
 		)*/
 	});
