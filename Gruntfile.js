@@ -7,12 +7,18 @@ module.exports = function (grunt) {
 
 	require('creatartis-grunt').config(grunt, {
 		sourceNames: ['__prologue__',
+			// game models
 				'GameModel', 
+				'models/TicTacToeGameModel',
+			// classifiers
 				'GameClassifier', 
-					'classifiers/ParametricalGameClassifier', 
-					'classifiers/LinearGameClassifier',
-				'players', 'linear-classifiers', 'training',
-				'examples/tictactoe-model',
+				'classifiers/ParametricalGameClassifier',
+				'classifiers/LinearGameClassifier',
+			// players
+				'players/ActionClassifierPlayer',
+				'ṕlayers/ResultClassifierPlayer',
+			// training 
+				'training/ParametricalGameClassifierOptimizationProblem',
 			'__epilogue__'],
 		deps: [
 			{ id: 'creatartis-base', name: 'base' },

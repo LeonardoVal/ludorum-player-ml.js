@@ -18,11 +18,11 @@ function __init__(base, Sermat, ludorum){ "use strict";
 			__package__: 'ludorum-player-ml',
 			__name__: 'ludorum_player_ml',
 			__init__: __init__,
-			__dependencies__: [base, Sermat, ludorum],
-
-			examples: { },
-			training: { }
+			__dependencies__: [base, Sermat, ludorum]
 		},
-		examples = exports.examples;
+		models = exports.models = { },
+		classifiers = exports.classifiers = { },
+		players = exports.players = { },
+		training = exports.training = { };
 
 // See __epilogue__.js
