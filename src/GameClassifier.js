@@ -71,10 +71,8 @@ var GameClassifier = exports.GameClassifier = declare({
 			return clazz[1];
 		}).map(function (clazz) {
 			return classes[clazz[0]];
-		}).toArray();
+		});
 	},
-
-	//TODO matchRule: function matchRule(values, game, player)
 
 	// ## Evaluation ##############################################################################
 
