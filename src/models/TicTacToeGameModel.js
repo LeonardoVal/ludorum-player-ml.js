@@ -2,7 +2,7 @@
 
 Example of a game model for TicTacToe.
 */
-examples.TicTacToeGameModel = base.declare(GameModel, {
+models.TicTacToeGameModel = base.declare(GameModel, {
 	constructor: function TicTacToeGameModel(params) {
 		params = params || {};
 		params.game = params.game || new ludorum.games.TicTacToe();
