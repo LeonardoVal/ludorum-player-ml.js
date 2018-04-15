@@ -3,7 +3,7 @@
 A [linear classifier](https://en.wikipedia.org/wiki/Linear_classifier) selects a class for an
 game state based on a linear combination of its features.
 */
-var LinearGameClassifier = exports.LinearGameClassifier = declare(ParametricalGameClassifier, {
+var LinearGameClassifier = classifiers.LinearGameClassifier = declare(ParametricalGameClassifier, {
 	constructor: function LinearGameClassifier(args) {
 		ParametricalGameClassifier.call(this, args);
 		var parameters = args && args.parameters,

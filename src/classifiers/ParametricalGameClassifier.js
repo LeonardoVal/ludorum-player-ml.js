@@ -2,7 +2,7 @@
 
 Game classifiers defined by a list of parameters.
 */
-var ParametricalGameClassifier = exports.ParametricalGameClassifier = declare(GameClassifier, {
+var ParametricalGameClassifier = classifiers.ParametricalGameClassifier = declare(GameClassifier, {
 	/** All classifiers are defined by a list of numerical `parameters`.
 	*/
 	constructor: function ParametricalGameClassifier(args) {
