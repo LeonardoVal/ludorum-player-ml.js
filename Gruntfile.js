@@ -14,9 +14,10 @@ module.exports = function (grunt) {
 				'GameClassifier', 
 				'classifiers/ParametricalGameClassifier',
 				'classifiers/LinearGameClassifier',
+				'classifiers/RuleBasedGameClassifier',
 			// players
 				'players/ActionClassifierPlayer',
-				'ṕlayers/ResultClassifierPlayer',
+				'players/ResultClassifierPlayer',
 			// training 
 				'training/ParametricalGameClassifierOptimizationProblem',
 			'__epilogue__'],

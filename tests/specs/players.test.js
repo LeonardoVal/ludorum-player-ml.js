@@ -3,14 +3,14 @@
 		Iterable = base.Iterable,
 		Match = ludorum.Match,
 		GameModel = ludorum_player_ml.GameModel,
-		GameClassifier = ludorum_player_ml.GameClassifier;
+		GameClassifier = ludorum_player_ml.GameClassifier,
+		ActionClassifierPlayer = ludorum_player_ml.players.ActionClassifierPlayer,
+		ResultClassifierPlayer = ludorum_player_ml.players.ResultClassifierPlayer;
 
-	var TICTACTOE_MODEL = new ludorum_player_ml.examples.TicTacToeGameModel();
+	var TICTACTOE_MODEL = new ludorum_player_ml.models.TicTacToeGameModel();
 
 	describe("LinearGameClassifier", function () { ////////////////////////////////////////////////////
-		var LinearGameClassifier = ludorum_player_ml.LinearGameClassifier,
-			ActionClassifierPlayer = ludorum_player_ml.ActionClassifierPlayer,
-			ResultClassifierPlayer = ludorum_player_ml.ResultClassifierPlayer;
+		var LinearGameClassifier = ludorum_player_ml.classifiers.LinearGameClassifier;
 
 		it("is properly configured", function () {
 			expect(typeof LinearGameClassifier).toBe('function');
@@ -44,4 +44,28 @@
 		});
 	}); //// LinearGameClassifier
 
+
+	describe("RuleBasedGameClassifier", function () {
+		var RuleBasedGameClassifier = ludorum_player_ml.classifiers.RuleBasedGameClassifier;
+
+		it("with ActionClassifierPlayer", function (done) {
+			var ActionRBGC = RuleBasedGameClassifier.actionClassifier({
+					gameModel: TICTACTOE_MODEL
+				}),
+				actionRBGC = new ActionRBGC(),
+				n = null;
+			actionRBGC.ruleFromValues([n,n,n, n,0,n, n,n,n], 4);
+			actionRBGC.ruleFromValues([0,n,n, n,n,n, n,n,n], 0);
+			actionRBGC.ruleFromValues([n,n,0, n,n,n, n,n,n], 2);
+			actionRBGC.ruleFromValues([n,n,n, n,n,n, 0,n,n], 6);
+			actionRBGC.ruleFromValues([n,n,n, n,n,n, n,n,0], 8);
+
+			var player = actionRBGC.player(),
+				match = new Match(TICTACTOE_MODEL.game, [player, player]);
+			match.run().then(function () {
+				expect(match.result()).toBeTruthy();
+				done();
+			});
+		});
+	}); //// RuleBasedGameClassifier
 }); //// define.
