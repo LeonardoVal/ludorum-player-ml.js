@@ -26,12 +26,12 @@ function __init__(base, Sermat, ludorum){ "use strict";
 			__package__: 'ludorum-player-ml',
 			__name__: 'ludorum_player_ml',
 			__init__: __init__,
-			__dependencies__: [base, Sermat, ludorum],
-
-			examples: { },
-			training: { }
+			__dependencies__: [base, Sermat, ludorum]
 		},
-		examples = exports.examples;
+		models = exports.models = { },
+		classifiers = exports.classifiers = { },
+		players = exports.players = { },
+		training = exports.training = { };
 
 // See __epilogue__.js
 
@@ -104,6 +104,45 @@ var GameModel = exports.GameModel = declare({
 	}
 }); // declare GameModel
 
+/** # TicTacToe model.
+
+Example of a game model for TicTacToe.
+*/
+models.TicTacToeGameModel = base.declare(GameModel, {
+	constructor: function TicTacToeGameModel(params) {
+		params = params || {};
+		params.game = params.game || new ludorum.games.TicTacToe();
+		GameModel.call(this, params);
+	},
+
+	/** The action classes for TicTacToe map to all possible moves.
+	*/
+	actionClasses: function actionClasses(game) {
+		return [0,1,2,3,4,5,6,7,8];
+	},
+
+	/** A TicTacToe game has 9 features, one for each square in the board. An empty square has a
+	value of zero. A square marked by the opponent has a value of -1. Squares marked by the player
+	have a value of +1.
+	*/
+	__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
+
+	featureRanges: function featureRanges() {
+		return this.__featureRanges__;
+	},
+
+	features: function features(game, player) {
+		var players = game.players.map(function (p) {
+				return p.charAt(0);
+			}),
+			factor = player === players[0] ? +1 : -1;
+		return game.board.split('').map(function (sq) {
+			return (sq === players[0]) ? factor : (sq === players[1]) ? -factor : 0;
+		});
+	}
+}); // declare TicTacToeGameModel
+
+
 /** # Game classifier
 
 A game classifier is a classifier that takes its inputs from a game state and a player. The outputs
@@ -146,8 +185,7 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** The base implementation returns a class at random. Only useful for testing purposes.
 	*/
 	classify: function classify(game, player) {
-		var matches = this.matches(game, player);
-		return matches.length > 0 ? this.random.choice(matches) : null;
+		return this.classify_randomMatch(game, player);
 	},
 
 	/** Simple classification that returns the first class that matches the `game` state.
@@ -155,6 +193,11 @@ var GameClassifier = exports.GameClassifier = declare({
 	classify_firstMatch: function classify_firstMatch(game, player) {
 		var matches = this.matches(game, player);
 		return matches.length > 0 ? matches[0] : null;
+	},
+
+	classify_randomMatch: function classify_randomMatch(game, player) {
+		var matches = this.matches(game, player);
+		return matches.length > 0 ? this.random.choice(matches) : null;
 	},
 
 	// ## Matching ################################################################################
@@ -177,10 +220,8 @@ var GameClassifier = exports.GameClassifier = declare({
 			return clazz[1];
 		}).map(function (clazz) {
 			return classes[clazz[0]];
-		}).toArray();
+		});
 	},
-
-	//TODO matchRule: function matchRule(values, game, player)
 
 	// ## Evaluation ##############################################################################
 
@@ -218,7 +259,52 @@ var GameClassifier = exports.GameClassifier = declare({
 		return evals.mapApply(function (i, v) {
 			return [i, (v - min) / sum];
 		}).toArray();
-	}
+	},
+
+	// ## Players #################################################################################
+
+	/** An `actionClassifier` is a game classifier that uses the game's possible actions as the
+	classes into which classify any game state.
+	*/
+	'static actionClassifier': function actionClassifier(members) {
+		var gameModel = members.gameModel || this.prototype.gameModel;
+		raiseIf(!gameModel, 'Game model not provided!');
+		members = base.copy({}, members, {
+				classes: gameModel.actionClasses(),
+				
+				/** The player used by an action classifier is `ActionClassifierPlayer` by default.
+				*/
+				player: function player(params) {
+					params = base.copy({}, params, { classifier: this });
+					return new ActionClassifierPlayer(params);
+				}
+			});
+		return declare(this, members);
+	},
+
+	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
+	classes into which classify any game state.
+	*/
+	'static resultClassifier': function resultClassifier(members) {
+		var gameModel = members.gameModel || this.prototype.gameModel;
+		raiseIf(!gameModel, 'Game model not provided!');
+		members = base.copy({}, members, {
+				classes: gameModel.resultClasses(),
+				
+				/** The player used by an action classifier is `ActionClassifierPlayer` by default.
+				*/
+				player: function player(params) {
+					params = base.copy({}, params, { classifier: this });
+					if (params.hasOwnProperty('horizon')) {
+						params.heuristic = ResultClassifierPlayer.heuristic.bind(null, this);
+						return new ludorum.players.AlphaBetaPlayer(params);
+					}
+					return new ResultClassifierPlayer(params);
+				}
+			});
+		return declare(this, members);
+	},
+
 }); // declare GameClassifier
 
 
@@ -226,7 +312,7 @@ var GameClassifier = exports.GameClassifier = declare({
 
 Game classifiers defined by a list of parameters.
 */
-var ParametricalGameClassifier = exports.ParametricalGameClassifier = declare(GameClassifier, {
+var ParametricalGameClassifier = classifiers.ParametricalGameClassifier = declare(GameClassifier, {
 	/** All classifiers are defined by a list of numerical `parameters`.
 	*/
 	constructor: function ParametricalGameClassifier(args) {
@@ -320,7 +406,7 @@ var ParametricalGameClassifier = exports.ParametricalGameClassifier = declare(Ga
 A [linear classifier](https://en.wikipedia.org/wiki/Linear_classifier) selects a class for an
 game state based on a linear combination of its features.
 */
-var LinearGameClassifier = exports.LinearGameClassifier = declare(ParametricalGameClassifier, {
+var LinearGameClassifier = classifiers.LinearGameClassifier = declare(ParametricalGameClassifier, {
 	constructor: function LinearGameClassifier(args) {
 		ParametricalGameClassifier.call(this, args);
 		var parameters = args && args.parameters,
@@ -369,19 +455,59 @@ var LinearGameClassifier = exports.LinearGameClassifier = declare(ParametricalGa
 }); // declare LinearGameClassifier
 
 
-/** # Players
+/** # Rule based game classifier
 
-Players based on classifiers can be built in many ways, and also combined with other algorithms like
-MCTS or MiniMax.
+A rule based game classifier selects a class for a game state based on a list of rules. Rules that 
+apply indicate a class. If many rules apply, different classifications must be resolved.
 */
+var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(GameClassifier, {
+	constructor: function RuleBasedGameClassifier(args) {
+		GameClassifier.call(this, args);
+		this.__rules__ = args && args.rules || [];
+	},
 
-/** ## Action classifier player ####################################################################
+	rules: function rules() {
+		return this.__rules__;
+	},
+
+	classify: GameClassifier.prototype.classify_firstMatch,
+
+	match_rules: function match_rules(rules, ruleContext, game, role) {
+		rules = rules || this.rules();
+		var model = this.gameModel.features(game, role),
+			classes = this.classes;
+		return iterable(rules).map(function (rule) {
+				return rule.call(ruleContext, features, game, role);
+			}, function (clazz) {
+				return classes.indexOf(r) >= 0;
+			}).toArray();
+	},
+
+	// ## Rule construction #######################################################################
+
+	ruleFromValues: function ruleFromValues(values, clazz, metadata) {
+		var r = function (features) {
+			return Iterable.zip(features, values).all(function (p) {
+					var f = p[0], v = p[1];
+					return (typeof f === 'undefined' || f === null || f === v);
+				}) ? clazz : null;
+		};
+		Object.assign(r, metadata);
+		return r;
+	},
+
+	// ## Players #################################################################################
+
+
+}); // declare RuleBasedGameClassifier
+
+/** # Action classifier player
 
 `ActionClassifierPlayer`s are simple players that use the given classifier to directly choose the
 action to make. The game `classifier` must be set up to use the game's possible actions as the
 classes into which classify any game state.
 */
-var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
+var ActionClassifierPlayer = players.ActionClassifierPlayer = declare(Player, {
 	constructor: function ActionClassifierPlayer(params) {
 		Player.call(this, params);
 		this.classifier = params.classifier;
@@ -394,28 +520,22 @@ var ActionClassifierPlayer = exports.ActionClassifierPlayer = declare(Player, {
 	decision: function decision(game, role) {
 		var validMoves = game.moves()[role],
 			classifier = this.classifier,
-			gameModel = classifier.gameModel,
-			classes = classifier.classes,
-			selected = iterable(classifier.evaluate(game, role)).map(function (c) {
-					return [gameModel.actionForClass(classes[c[0]], game, role), c[1]];
-				}).filter(function (c) {
-					return validMoves.indexOf(c[0]) >= 0;
-				}).greater(function (c) {
-					return c[1];
-				}).map(function (c) {
-					return c[0];
-				});
-		return classifier.random.choice(selected);
+			actionClass = classifier.classify(game, role),
+			action = classifier.gameModel.actionForClass(actionClass, game, role);
+		if (validMoves.indexOf(action) >= 0) {
+			return action;
+		} else {
+			return classifier.random.choice(validMoves);
+		}
 	}
 }); // declare ActionClassifierPlayer
 
-/** ## Result classifier player ####################################################################
+/** # Result classifier player
 
-`ResultClassifierPlayer`s are simple players that use the given classifier to directly choose the
-action to make. The game `classifier` must be set up to use the game's possible actions as the
-classes into which classify any game state.
+`ResultClassifierPlayer`s are simple players that use the given classifier as a heuristic evaluation
+of game states.
 */
-var ResultClassifierPlayer = exports.ResultClassifierPlayer = declare(HeuristicPlayer, {
+var ResultClassifierPlayer = players.ResultClassifierPlayer = declare(HeuristicPlayer, {
 	constructor: function ResultClassifierPlayer(params) {
 		HeuristicPlayer.call(this, params);
 		this.classifier = params.classifier;
@@ -440,26 +560,24 @@ var ResultClassifierPlayer = exports.ResultClassifierPlayer = declare(HeuristicP
 	}
 }); // declare ResultClassifierPlayer
 
-//TODO Move filter with action classifier.
 
-
-/** # Training
+/** # Parametrical game classifier optimization problem
 
 Player model adjustment using the Inveniemus framework.
 */
-exports.add_inveniemus = function add_inveniemus(inveniemus) {
+training.getParametricalGameClassifierOptimizationProblem = function getParametricalGameClassifierOptimizationProblem(inveniemus) {
 	inveniemus = inveniemus || require('inveniemus');
 	var Problem = inveniemus.Problem,
 		RandomPlayer = ludorum.players.RandomPlayer,
 		Measurement = ludorum.tournaments.Measurement;
 
-	exports.training.TrainingProblem = declare(Problem, {
+	var ParametricalGameClassifierOptimizationProblem = declare(Problem, {
 		random: base.Randomness.DEFAULT,
 		objectives: [+Infinity],
 		precision: 10,
 		matchCount: 3,
 
-		constructor: function TrainingProblem(params) {
+		constructor: function ParametricalGameClassifierOptimizationProblem(params) {
 			initialize(this, params)
 				.func('ClassifierType')
 				.integer('precision', { coerce: true, ignore: true })
@@ -471,7 +589,7 @@ exports.add_inveniemus = function add_inveniemus(inveniemus) {
 				parameterRanges = this.ClassifierType.prototype.parameterRanges,
 				game = this.ClassifierType.prototype.gameModel.game;
 			Problem.call(this, Object.assign(params, {
-				title: "TrainingProblem for "+ this.ClassifierType,
+				title: "Optimization of "+ this.ClassifierType,
 				description: "Training method based on inveniemus for "+ this.ClassifierType,
 				elementModel: parameterRanges.map(function (range) {
 					return { n: (range.max - range.min) * precision + 1 };
@@ -584,47 +702,10 @@ exports.add_inveniemus = function add_inveniemus(inveniemus) {
 			});
 			return mh;
 		}
-	}); // declare TrainingProblem
+	}); // declare ParametricalGameClassifierOptimizationProblem
+
+	return ParametricalGameClassifierOptimizationProblem;
 };
-
-
-/** # TicTacToe model.
-
-Example of a game model for TicTacToe.
-*/
-examples.TicTacToeGameModel = base.declare(GameModel, {
-	constructor: function TicTacToeGameModel(params) {
-		params = params || {};
-		params.game = params.game || new ludorum.games.TicTacToe();
-		GameModel.call(this, params);
-	},
-
-	/** The action classes for TicTacToe map to all possible moves.
-	*/
-	actionClasses: function actionClasses(game) {
-		return [0,1,2,3,4,5,6,7,8];
-	},
-
-	/** A TicTacToe game has 9 features, one for each square in the board. An empty square has a
-	value of zero. A square marked by the opponent has a value of -1. Squares marked by the player
-	have a value of +1.
-	*/
-	__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
-
-	featureRanges: function featureRanges() {
-		return this.__featureRanges__;
-	},
-
-	features: function features(game, player) {
-		var players = game.players.map(function (p) {
-				return p.charAt(0);
-			}),
-			factor = player === players[0] ? +1 : -1;
-		return game.board.split('').map(function (sq) {
-			return (sq === players[0]) ? factor : (sq === players[1]) ? -factor : 0;
-		});
-	}
-}); // declare TicTacToeGameModel
 
 
 // See __prologue__.js
