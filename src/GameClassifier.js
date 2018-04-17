@@ -40,8 +40,7 @@ var GameClassifier = exports.GameClassifier = declare({
 	/** The base implementation returns a class at random. Only useful for testing purposes.
 	*/
 	classify: function classify(game, player) {
-		var matches = this.matches(game, player);
-		return matches.length > 0 ? this.random.choice(matches) : null;
+		return this.classify_randomMatch(game, player);
 	},
 
 	/** Simple classification that returns the first class that matches the `game` state.
@@ -49,6 +48,11 @@ var GameClassifier = exports.GameClassifier = declare({
 	classify_firstMatch: function classify_firstMatch(game, player) {
 		var matches = this.matches(game, player);
 		return matches.length > 0 ? matches[0] : null;
+	},
+
+	classify_randomMatch: function classify_randomMatch(game, player) {
+		var matches = this.matches(game, player);
+		return matches.length > 0 ? this.random.choice(matches) : null;
 	},
 
 	// ## Matching ################################################################################
@@ -110,5 +114,50 @@ var GameClassifier = exports.GameClassifier = declare({
 		return evals.mapApply(function (i, v) {
 			return [i, (v - min) / sum];
 		}).toArray();
-	}
+	},
+
+	// ## Players #################################################################################
+
+	/** An `actionClassifier` is a game classifier that uses the game's possible actions as the
+	classes into which classify any game state.
+	*/
+	'static actionClassifier': function actionClassifier(members) {
+		var gameModel = members.gameModel || this.prototype.gameModel;
+		raiseIf(!gameModel, 'Game model not provided!');
+		members = base.copy({}, members, {
+				classes: gameModel.actionClasses(),
+				
+				/** The player used by an action classifier is `ActionClassifierPlayer` by default.
+				*/
+				player: function player(params) {
+					params = base.copy({}, params, { classifier: this });
+					return new ActionClassifierPlayer(params);
+				}
+			});
+		return declare(this, members);
+	},
+
+	/** An `resultClassifier` is a game classifier that uses the game's possible results as the
+	classes into which classify any game state.
+	*/
+	'static resultClassifier': function resultClassifier(members) {
+		var gameModel = members.gameModel || this.prototype.gameModel;
+		raiseIf(!gameModel, 'Game model not provided!');
+		members = base.copy({}, members, {
+				classes: gameModel.resultClasses(),
+				
+				/** The player used by an action classifier is `ActionClassifierPlayer` by default.
+				*/
+				player: function player(params) {
+					params = base.copy({}, params, { classifier: this });
+					if (params.hasOwnProperty('horizon')) {
+						params.heuristic = ResultClassifierPlayer.heuristic.bind(null, this);
+						return new ludorum.players.AlphaBetaPlayer(params);
+					}
+					return new ResultClassifierPlayer(params);
+				}
+			});
+		return declare(this, members);
+	},
+
 }); // declare GameClassifier
