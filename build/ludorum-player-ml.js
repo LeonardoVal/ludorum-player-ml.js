@@ -28,9 +28,9 @@ function __init__(base, Sermat, ludorum){ "use strict";
 			__init__: __init__,
 			__dependencies__: [base, Sermat, ludorum]
 		},
-		models = exports.models = { },
 		classifiers = exports.classifiers = { },
 		players = exports.players = { },
+		games = exports.games = { },
 		training = exports.training = { };
 
 // See __epilogue__.js
@@ -103,45 +103,6 @@ var GameModel = exports.GameModel = declare({
 			}).toArray();
 	}
 }); // declare GameModel
-
-/** # TicTacToe model.
-
-Example of a game model for TicTacToe.
-*/
-models.TicTacToeGameModel = base.declare(GameModel, {
-	constructor: function TicTacToeGameModel(params) {
-		params = params || {};
-		params.game = params.game || new ludorum.games.TicTacToe();
-		GameModel.call(this, params);
-	},
-
-	/** The action classes for TicTacToe map to all possible moves.
-	*/
-	actionClasses: function actionClasses(game) {
-		return [0,1,2,3,4,5,6,7,8];
-	},
-
-	/** A TicTacToe game has 9 features, one for each square in the board. An empty square has a
-	value of zero. A square marked by the opponent has a value of -1. Squares marked by the player
-	have a value of +1.
-	*/
-	__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
-
-	featureRanges: function featureRanges() {
-		return this.__featureRanges__;
-	},
-
-	features: function features(game, player) {
-		var players = game.players.map(function (p) {
-				return p.charAt(0);
-			}),
-			factor = player === players[0] ? +1 : -1;
-		return game.board.split('').map(function (sq) {
-			return (sq === players[0]) ? factor : (sq === players[1]) ? -factor : 0;
-		});
-	}
-}); // declare TicTacToeGameModel
-
 
 /** # Game classifier
 
@@ -236,28 +197,25 @@ var GameClassifier = exports.GameClassifier = declare({
 		});
 	},
 
-	/** The normalization makes the evaluations for all classes fit in the [0,1] range, adding up
-	to 1.
+	/** The normalization makes the evaluations for all classes fit in the [0,1] range.
 	*/
 	normalizedEvaluate: function normalizedEvaluate(game, player) {
 		var evals = iterable(this.evaluate(game, player)),
 			min = +Infinity,
 			max = -Infinity,
-			sum = 0,
 			count = 0;
-		evals.forEachApply(function (i, v) {
+		evals.forEachApply(function (c, v) {
 			if (min > v) {
 				min = v;
 			}
 			if (max < v) {
 				max = v;
 			}
-			sum += v;
 			count++;
 		});
-		sum = sum - count * min;
-		return evals.mapApply(function (i, v) {
-			return [i, (v - min) / sum];
+		var d = max - min;
+		return evals.mapApply(function (c, v) {
+			return [c, (v - min) / (d || max || 1) / count];
 		}).toArray();
 	},
 
@@ -472,9 +430,9 @@ var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(Game
 
 	classify: GameClassifier.prototype.classify_firstMatch,
 
-	match_rules: function match_rules(rules, ruleContext, game, role) {
+	match_rules: function match_rules(game, role, rules, ruleContext) {
 		rules = rules || this.rules();
-		var model = this.gameModel.features(game, role),
+		var features = this.gameModel.features(game, role),
 			classes = this.classes;
 		return iterable(rules).map(function (rule) {
 				return rule.call(ruleContext, features, game, role);
@@ -483,21 +441,52 @@ var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(Game
 			}).toArray();
 	},
 
+	evaluate_rules: function evaluate_rules(game, role, rules, ruleContext) {
+		rules = rules || this.rules();
+		var features = this.gameModel.features(game, role),
+			counts = Iterable.zip(this.classes, Iterable.repeat(0)).toObject();
+		rules.forEach(function (rule) {
+			var c = rule.call(ruleContext, features, game, role);
+			if (typeof c !== 'undefined' && c !== null) {
+				counts[c]++;
+			}
+		});
+		return iterable(counts).toArray();
+	},
+
 	// ## Rule construction #######################################################################
 
 	ruleFromValues: function ruleFromValues(values, clazz, metadata) {
-		var r = function (features) {
-			return Iterable.zip(features, values).all(function (p) {
+		var ruleFunction = function (features) {
+			var result = Iterable.zip(features, values).all(function (p) {
 					var f = p[0], v = p[1];
-					return (typeof f === 'undefined' || f === null || f === v);
+					return (typeof v === 'undefined' || v === null || f === v);
 				}) ? clazz : null;
+			return result;
 		};
-		Object.assign(r, metadata);
-		return r;
+		Object.assign(ruleFunction, metadata);
+		return ruleFunction;
+	},
+
+	add_ruleFromValues: function add_ruleFromValues(values, clazz, metadata) {
+		this.__rules__.push(this.ruleFromValues(values, clazz, metadata));
+		return this;
 	},
 
 	// ## Players #################################################################################
 
+	'static actionClassifier': function actionClassifier(members) {
+		return GameClassifier.actionClassifier.call(this, Object.assign({
+			match: RuleBasedGameClassifier.prototype.match_rules 
+		}, members));
+	},
+
+	'static resultClassifier': function resultClassifier(members) {
+		return GameClassifier.resultClassifier.call(this, Object.assign({
+			match: GameClassifier.prototype.match_bestEvaluated,
+			evaluate: RuleBasedGameClassifier.prototype.evaluate_rules 
+		}, members));
+	},
 
 }); // declare RuleBasedGameClassifier
 
@@ -522,11 +511,10 @@ var ActionClassifierPlayer = players.ActionClassifierPlayer = declare(Player, {
 			classifier = this.classifier,
 			actionClass = classifier.classify(game, role),
 			action = classifier.gameModel.actionForClass(actionClass, game, role);
-		if (validMoves.indexOf(action) >= 0) {
-			return action;
-		} else {
-			return classifier.random.choice(validMoves);
+		if (validMoves.indexOf(action) < 0) {
+			action = classifier.random.choice(validMoves);
 		}
+		return action;
 	}
 }); // declare ActionClassifierPlayer
 
@@ -547,10 +535,9 @@ var ResultClassifierPlayer = players.ResultClassifierPlayer = declare(HeuristicP
 	'static heuristic': function (classifier, game, role) {
 		var resultBounds = game.resultBounds(),
 			divisor = Math.max(Math.abs(resultBounds[0]), Math.abs(resultBounds[1])) * 1.1,
-			classes = classifier.classes,
 			evals = classifier.normalizedEvaluate(game, role),
 			result = iterable(evals).map(function (c) {
-				return classes[c[0]] * c[1];
+				return c[0] * c[1];
 			}).sum() / divisor;
 		return result;
 	},
@@ -560,6 +547,94 @@ var ResultClassifierPlayer = players.ResultClassifierPlayer = declare(HeuristicP
 	}
 }); // declare ResultClassifierPlayer
 
+
+/** # TicTacToe model.
+
+Example of a game model for TicTacToe.
+*/
+var tictactoe = games.tictactoe = {};
+
+tictactoe.TicTacToeGameModel = base.declare(GameModel, {
+	constructor: function TicTacToeGameModel(params) {
+		params = params || {};
+		params.game = params.game || new ludorum.games.TicTacToe();
+		GameModel.call(this, params);
+	},
+
+	/** The action classes for TicTacToe map to all possible moves.
+	*/
+	actionClasses: function actionClasses(game) {
+		return [0,1,2,3,4,5,6,7,8];
+	},
+
+	/** A TicTacToe game has 9 features, one for each square in the board. An empty square has a
+	value of zero. A square marked by the opponent has a value of -1. Squares marked by the player
+	have a value of +1.
+	*/
+	__featureRanges__: base.Iterable.repeat({ min: -1, max: 1 }, 9).toArray(),
+
+	featureRanges: function featureRanges() {
+		return this.__featureRanges__;
+	},
+
+	features: function features(game, player) {
+		var players = game.players.map(function (p) {
+				return p.charAt(0);
+			}),
+			factor = player === game.players[0] ? +1 : -1;
+		return game.board.split('').map(function (sq) {
+			return (sq === players[0]) ? factor : (sq === players[1]) ? -factor : 0;
+		});
+	}
+}); // declare TicTacToeGameModel
+
+tictactoe.MODEL = new tictactoe.TicTacToeGameModel();
+
+tictactoe.ACTION_RULES = (function () {
+	var n = null;
+	return [
+		[[ n, n, n,  n, 0, n,  n, n, n], 4], // Take the center.
+		[[ 0, n, n,  n, n, n,  n, n, n], 0], // Take the corners.
+		[[ n, n, 0,  n, n, n,  n, n, n], 2],
+		[[ n, n, n,  n, n, n,  0, n, n], 6],
+		[[ n, n, n,  n, n, n,  n, n, 0], 8],
+
+		[[+1, 0,+1,  n, n, n,  n, n, n], 1], // Take the borders to win.
+		[[+1, n, n,  0, n, n, +1, n, n], 3],
+		[[ n, n,+1,  n, n, 0,  n, n,+1], 5],
+		[[ n, n, n,  n, n, n, +1, 0,+1], 7],
+		
+		[[-1, 0,-1,  n, n, n,  n, n, n], 1], // Take the borders to not lose.
+		[[-1, n, n,  0, n, n, -1, n, n], 3],
+		[[ n, n,-1,  n, n, 0,  n, n,-1], 5],
+		[[ n, n, n,  n, n, n, -1, 0,-1], 7]
+	];
+})();
+
+tictactoe.ACTION_REGEXP = [
+	{ 4: /....1..../ },
+	{ '[0,2,6,8]': /....0..../ },
+	{ 0: /1(00|22)......|1..0..0..|1..2..2..|1...0...0|1...2...2/,
+	  2: /(00|22)1......|..1..0..0|..1..2..2|..1.0.0..|..1.2.2../,
+	  3: /...1(00|22)...|0..1..0..|2..1..2../,
+	  5: /...(00|22)1...|..0..1..0|..2..1..2/,
+	  6: /......1(00|22)|0..0..1..|2..2..1..|..0.0.1..|..2.2.1../,
+	  8: /......(00|22)1|..0..0..1|..2..2..1|0...0...1|2...2...1/
+	}
+];
+
+tictactoe.ruleBasedActionPlayer = function ruleBasedActionPlayer(rules) {
+	rules = rules || tictactoe.ACTION_RULES;
+	var ActionRBGC = RuleBasedGameClassifier.actionClassifier({
+			gameModel: tictactoe.MODEL
+		}),
+		actionRBGC = new ActionRBGC(),
+		n = null;
+	rules.forEach(function (rule) {
+		actionRBGC.add_ruleFromValues(rule[0], rule[1]);	
+	});
+	return actionRBGC.player();
+};
 
 /** # Parametrical game classifier optimization problem
 
