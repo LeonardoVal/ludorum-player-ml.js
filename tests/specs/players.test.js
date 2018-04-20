@@ -7,7 +7,7 @@
 		ActionClassifierPlayer = ludorum_player_ml.players.ActionClassifierPlayer,
 		ResultClassifierPlayer = ludorum_player_ml.players.ResultClassifierPlayer;
 
-	var TICTACTOE_MODEL = new ludorum_player_ml.models.TicTacToeGameModel();
+	var tictactoe = ludorum_player_ml.games.tictactoe;
 
 	describe("LinearGameClassifier", function () { ////////////////////////////////////////////////////
 		var LinearGameClassifier = ludorum_player_ml.classifiers.LinearGameClassifier;
@@ -18,12 +18,12 @@
 		});
 
 		it("with ActionClassifierPlayer", function (done) {
-			var ActionLinearClassifier = LinearGameClassifier.actionClassifier(TICTACTOE_MODEL);
+			var ActionLinearClassifier = LinearGameClassifier.actionClassifier(tictactoe.MODEL);
 			expect(ActionLinearClassifier.prototype instanceof LinearGameClassifier).toBe(true);
 			var linearGameClassifier = ActionLinearClassifier.randomClassifier();
 			expect(linearGameClassifier instanceof ActionLinearClassifier).toBe(true);
 			var player = new ActionClassifierPlayer({ classifier: linearGameClassifier }),
-				match = new Match(TICTACTOE_MODEL.game, [player, player]);
+				match = new Match(tictactoe.MODEL.game, [player, player]);
 			match.run().then(function () {
 				expect(match.result()).toBeTruthy();
 				done();
@@ -31,12 +31,12 @@
 		});
 
 		it("with ResultClassifierPlayer", function (done) {
-			var ResultLinearClassifier = LinearGameClassifier.resultClassifier(TICTACTOE_MODEL);
+			var ResultLinearClassifier = LinearGameClassifier.resultClassifier(tictactoe.MODEL);
 			expect(ResultLinearClassifier.prototype instanceof LinearGameClassifier).toBe(true);
 			var linearGameClassifier = ResultLinearClassifier.randomClassifier();
 			expect(linearGameClassifier instanceof ResultLinearClassifier).toBe(true);
 			var player = new ResultClassifierPlayer({ classifier: linearGameClassifier }),
-				match = new Match(TICTACTOE_MODEL.game, [player, player]);
+				match = new Match(tictactoe.MODEL.game, [player, player]);
 			match.run().then(function () {
 				expect(match.result()).toBeTruthy();
 				done();
@@ -49,19 +49,52 @@
 		var RuleBasedGameClassifier = ludorum_player_ml.classifiers.RuleBasedGameClassifier;
 
 		it("with ActionClassifierPlayer", function (done) {
-			var ActionRBGC = RuleBasedGameClassifier.actionClassifier({
-					gameModel: TICTACTOE_MODEL
-				}),
-				actionRBGC = new ActionRBGC(),
-				n = null;
-			actionRBGC.ruleFromValues([n,n,n, n,0,n, n,n,n], 4);
-			actionRBGC.ruleFromValues([0,n,n, n,n,n, n,n,n], 0);
-			actionRBGC.ruleFromValues([n,n,0, n,n,n, n,n,n], 2);
-			actionRBGC.ruleFromValues([n,n,n, n,n,n, 0,n,n], 6);
-			actionRBGC.ruleFromValues([n,n,n, n,n,n, n,n,0], 8);
+			var player = tictactoe.ruleBasedActionPlayer(),
+				match = new Match(tictactoe.MODEL.game, [player, player]);
+			match.run().then(function () {
+				expect(match.result()).toBeTruthy();
+				done();
+			});
+		});
 
-			var player = actionRBGC.player(),
-				match = new Match(TICTACTOE_MODEL.game, [player, player]);
+		it("with ActionClassifierPlayer against MiniMax", function (done) {
+			var player1 = tictactoe.ruleBasedActionPlayer(),
+				//player2 = new ludorum.players.AlphaBetaPlayer({ name: 'AB4', horizon: 4 }),
+				player2 = new ludorum.players.RandomPlayer({ name: 'RN' }),
+				match = new Match(tictactoe.MODEL.game, [player1, player2]);
+			match.run().then(function () {
+				expect(match.result()).toBeTruthy();
+				console.log('RB vs '+ player2.name, match.result());//FIXME
+				match = new Match(tictactoe.MODEL.game, [player2, player1]);
+				match.run().then(function () {
+					expect(match.result()).toBeTruthy();
+					console.log(player2.name +' vs RB', match.result());//FIXME
+					done();
+				});
+			});
+		});
+
+		it("with ResultClassifierPlayer", function (done) {
+			var ResultRBGC = RuleBasedGameClassifier.resultClassifier({
+					gameModel: tictactoe.MODEL
+				}),
+				resultRBGC = new ResultRBGC(),
+				n = null;
+			resultRBGC.add_ruleFromValues([n,n,n, n,+1,n, n,n,n], +1)
+				.add_ruleFromValues([n,n,n, n,-1,n, n,n,n], -1)
+				.add_ruleFromValues([+1,n,n, n,n,n, n,n,n], +1)
+				.add_ruleFromValues([-1,n,n, n,n,n, n,n,n], -1)
+				.add_ruleFromValues([n,n,+1, n,n,n, n,n,n], +1)
+				.add_ruleFromValues([n,n,-1, n,n,n, n,n,n], -1)
+				.add_ruleFromValues([n,n,n, +1,n,n, n,n,n], +1)
+				.add_ruleFromValues([n,n,n, -1,n,n, n,n,n], -1)
+				.add_ruleFromValues([n,n,n, n,n,+1, n,n,n], +1)
+				.add_ruleFromValues([n,n,n, n,n,-1, n,n,n], -1)
+				.add_ruleFromValues([n,n,n, n,n,n, n,n,+1], +1)
+				.add_ruleFromValues([n,n,n, n,n,n, n,n,-1], -1);
+
+			var player = resultRBGC.player(),
+				match = new Match(tictactoe.MODEL.game, [player, player]);
 			match.run().then(function () {
 				expect(match.result()).toBeTruthy();
 				done();
