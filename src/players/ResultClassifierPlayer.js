@@ -15,10 +15,9 @@ var ResultClassifierPlayer = players.ResultClassifierPlayer = declare(HeuristicP
 	'static heuristic': function (classifier, game, role) {
 		var resultBounds = game.resultBounds(),
 			divisor = Math.max(Math.abs(resultBounds[0]), Math.abs(resultBounds[1])) * 1.1,
-			classes = classifier.classes,
 			evals = classifier.normalizedEvaluate(game, role),
 			result = iterable(evals).map(function (c) {
-				return classes[c[0]] * c[1];
+				return c[0] * c[1];
 			}).sum() / divisor;
 		return result;
 	},
