@@ -20,9 +20,9 @@ function __init__(base, Sermat, ludorum){ "use strict";
 			__init__: __init__,
 			__dependencies__: [base, Sermat, ludorum]
 		},
-		models = exports.models = { },
 		classifiers = exports.classifiers = { },
 		players = exports.players = { },
+		games = exports.games = { },
 		training = exports.training = { };
 
 // See __epilogue__.js
