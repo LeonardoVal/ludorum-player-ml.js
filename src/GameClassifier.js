@@ -91,28 +91,25 @@ var GameClassifier = exports.GameClassifier = declare({
 		});
 	},
 
-	/** The normalization makes the evaluations for all classes fit in the [0,1] range, adding up
-	to 1.
+	/** The normalization makes the evaluations for all classes fit in the [0,1] range.
 	*/
 	normalizedEvaluate: function normalizedEvaluate(game, player) {
 		var evals = iterable(this.evaluate(game, player)),
 			min = +Infinity,
 			max = -Infinity,
-			sum = 0,
 			count = 0;
-		evals.forEachApply(function (i, v) {
+		evals.forEachApply(function (c, v) {
 			if (min > v) {
 				min = v;
 			}
 			if (max < v) {
 				max = v;
 			}
-			sum += v;
 			count++;
 		});
-		sum = sum - count * min;
-		return evals.mapApply(function (i, v) {
-			return [i, (v - min) / sum];
+		var d = max - min;
+		return evals.mapApply(function (c, v) {
+			return [c, (v - min) / (d || max || 1) / count];
 		}).toArray();
 	},
 
