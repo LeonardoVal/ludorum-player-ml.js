@@ -15,9 +15,9 @@ var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(Game
 
 	classify: GameClassifier.prototype.classify_firstMatch,
 
-	match_rules: function match_rules(rules, ruleContext, game, role) {
+	match_rules: function match_rules(game, role, rules, ruleContext) {
 		rules = rules || this.rules();
-		var model = this.gameModel.features(game, role),
+		var features = this.gameModel.features(game, role),
 			classes = this.classes;
 		return iterable(rules).map(function (rule) {
 				return rule.call(ruleContext, features, game, role);
@@ -26,20 +26,51 @@ var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(Game
 			}).toArray();
 	},
 
+	evaluate_rules: function evaluate_rules(game, role, rules, ruleContext) {
+		rules = rules || this.rules();
+		var features = this.gameModel.features(game, role),
+			counts = Iterable.zip(this.classes, Iterable.repeat(0)).toObject();
+		rules.forEach(function (rule) {
+			var c = rule.call(ruleContext, features, game, role);
+			if (typeof c !== 'undefined' && c !== null) {
+				counts[c]++;
+			}
+		});
+		return iterable(counts).toArray();
+	},
+
 	// ## Rule construction #######################################################################
 
 	ruleFromValues: function ruleFromValues(values, clazz, metadata) {
-		var r = function (features) {
-			return Iterable.zip(features, values).all(function (p) {
+		var ruleFunction = function (features) {
+			var result = Iterable.zip(features, values).all(function (p) {
 					var f = p[0], v = p[1];
-					return (typeof f === 'undefined' || f === null || f === v);
+					return (typeof v === 'undefined' || v === null || f === v);
 				}) ? clazz : null;
+			return result;
 		};
-		Object.assign(r, metadata);
-		return r;
+		Object.assign(ruleFunction, metadata);
+		return ruleFunction;
+	},
+
+	add_ruleFromValues: function add_ruleFromValues(values, clazz, metadata) {
+		this.__rules__.push(this.ruleFromValues(values, clazz, metadata));
+		return this;
 	},
 
 	// ## Players #################################################################################
 
+	'static actionClassifier': function actionClassifier(members) {
+		return GameClassifier.actionClassifier.call(this, Object.assign({
+			match: RuleBasedGameClassifier.prototype.match_rules 
+		}, members));
+	},
+
+	'static resultClassifier': function resultClassifier(members) {
+		return GameClassifier.resultClassifier.call(this, Object.assign({
+			match: GameClassifier.prototype.match_bestEvaluated,
+			evaluate: RuleBasedGameClassifier.prototype.evaluate_rules 
+		}, members));
+	},
 
 }); // declare RuleBasedGameClassifier
