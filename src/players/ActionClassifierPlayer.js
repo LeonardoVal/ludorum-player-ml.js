@@ -19,10 +19,9 @@ var ActionClassifierPlayer = players.ActionClassifierPlayer = declare(Player, {
 			classifier = this.classifier,
 			actionClass = classifier.classify(game, role),
 			action = classifier.gameModel.actionForClass(actionClass, game, role);
-		if (validMoves.indexOf(action) >= 0) {
-			return action;
-		} else {
-			return classifier.random.choice(validMoves);
+		if (validMoves.indexOf(action) < 0) {
+			action = classifier.random.choice(validMoves);
 		}
+		return action;
 	}
 }); // declare ActionClassifierPlayer
