@@ -40,48 +40,39 @@ tictactoe.TicTacToeGameModel = base.declare(GameModel, {
 
 tictactoe.MODEL = new tictactoe.TicTacToeGameModel();
 
-tictactoe.ACTION_RULES = (function () {
-	var n = null;
-	return [
-		[[ n, n, n,  n, 0, n,  n, n, n], 4], // Take the center.
-		[[ 0, n, n,  n, n, n,  n, n, n], 0], // Take the corners.
-		[[ n, n, 0,  n, n, n,  n, n, n], 2],
-		[[ n, n, n,  n, n, n,  0, n, n], 6],
-		[[ n, n, n,  n, n, n,  n, n, 0], 8],
-
-		[[+1, 0,+1,  n, n, n,  n, n, n], 1], // Take the borders to win.
-		[[+1, n, n,  0, n, n, +1, n, n], 3],
-		[[ n, n,+1,  n, n, 0,  n, n,+1], 5],
-		[[ n, n, n,  n, n, n, +1, 0,+1], 7],
-		
-		[[-1, 0,-1,  n, n, n,  n, n, n], 1], // Take the borders to not lose.
-		[[-1, n, n,  0, n, n, -1, n, n], 3],
-		[[ n, n,-1,  n, n, 0,  n, n,-1], 5],
-		[[ n, n, n,  n, n, n, -1, 0,-1], 7]
-	];
-})();
-
-tictactoe.ACTION_REGEXP = [
-	{ 4: /....1..../ },
-	{ '[0,2,6,8]': /....0..../ },
-	{ 0: /1(00|22)......|1..0..0..|1..2..2..|1...0...0|1...2...2/,
-	  2: /(00|22)1......|..1..0..0|..1..2..2|..1.0.0..|..1.2.2../,
-	  3: /...1(00|22)...|0..1..0..|2..1..2../,
-	  5: /...(00|22)1...|..0..1..0|..2..1..2/,
-	  6: /......1(00|22)|0..0..1..|2..2..1..|..0.0.1..|..2.2.1../,
-	  8: /......(00|22)1|..0..0..1|..2..2..1|0...0...1|2...2...1/
+tictactoe.ACTION_RULES = RuleBasedGameClassifier.parseActions([
+	{ 4: '...._....' },
+	{ '0|2|6|8': '....-....' },
+	{ 0: '_--...... _++...... _..-..-.. _..+..+.. _...-...- _...+...+',
+	  2: '--_...... ++_...... .._..-..- .._..+..+ .._.-.-.. .._.+.+..',
+	  3: '..._--... ..._++... -.._..-.. +.._..+..',
+	  5: '...--_... ...++_... ..-.._..- ..+.._..+',
+	  6: '......_-- ......_++ -..-.._.. +..+.._.. ..-.-._.. ..+.+._..',
+	  8: '......--_ ......++_ ..-..-.._ ..+..+.._ -...-..._ +...+..._'
 	}
-];
+]);
 
 tictactoe.ruleBasedActionPlayer = function ruleBasedActionPlayer(rules) {
 	rules = rules || tictactoe.ACTION_RULES;
 	var ActionRBGC = RuleBasedGameClassifier.actionClassifier({
-			gameModel: tictactoe.MODEL
+			gameModel: tictactoe.MODEL,
+			__rules__: rules
 		}),
-		actionRBGC = new ActionRBGC(),
-		n = null;
-	rules.forEach(function (rule) {
-		actionRBGC.add_ruleFromValues(rule[0], rule[1]);	
-	});
+		actionRBGC = new ActionRBGC();
 	return actionRBGC.player();
+};
+
+tictactoe.RESULT_RULES = RuleBasedGameClassifier.parseActions([{
+	'+': '....+.... +........ ..+...... ......+.. ........+',
+	'-': '....-.... -........ ..-...... ......-.. ........-'
+}]);
+
+tictactoe.ruleBasedResultPlayer = function ruleBasedResultPlayer(rules) {
+	rules = rules || tictactoe.RESULT_RULES;
+	var ResultRBGC = RuleBasedGameClassifier.resultClassifier({
+			gameModel: tictactoe.MODEL,
+			__rules__: rules
+		}),
+		resultRBGC = new ResultRBGC();
+	return resultRBGC.player();
 };
