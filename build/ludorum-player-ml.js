@@ -424,39 +424,59 @@ var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(Game
 		this.__rules__ = args && args.rules || [];
 	},
 
+	/** The `rules` property is a list of lists of functions with the signature 
+	`(features, game, role)` returning a class if the rule applies or `null` if it does not. Each 
+	function is called a _rule_, and a list of rules is a called a _level_.
+	*/
 	rules: function rules() {
 		return this.__rules__;
 	},
 
+	__rules__: [],
+
 	classify: GameClassifier.prototype.classify_firstMatch,
 
+	/** Matching goes level by level, and stops at the first level that has at least one rule that
+	applies to the given game state.
+	*/
 	match_rules: function match_rules(game, role, rules, ruleContext) {
 		rules = rules || this.rules();
 		var features = this.gameModel.features(game, role),
-			classes = this.classes;
-		return iterable(rules).map(function (rule) {
+			classes = this.classes,
+			matches = [];
+		for (var i = 0; matches.length < 1 && i < rules.length; i++) {
+			matches = iterable(rules[i]).map(function (rule) {
 				return rule.call(ruleContext, features, game, role);
 			}, function (clazz) {
 				return classes.indexOf(r) >= 0;
 			}).toArray();
+		}
+		return matches;
 	},
 
+	/**
+	*/
 	evaluate_rules: function evaluate_rules(game, role, rules, ruleContext) {
 		rules = rules || this.rules();
 		var features = this.gameModel.features(game, role),
-			counts = Iterable.zip(this.classes, Iterable.repeat(0)).toObject();
-		rules.forEach(function (rule) {
-			var c = rule.call(ruleContext, features, game, role);
-			if (typeof c !== 'undefined' && c !== null) {
-				counts[c]++;
-			}
-		});
+			counts = Iterable.zip(this.classes, Iterable.repeat(0)).toObject(),
+			done = false,
+			level;
+		for (var i = 0; !done && i < rules.length; i++) {
+			rules[i].forEach(function (level) {
+				var c = rule.call(ruleContext, features, game, role);
+				if (typeof c !== 'undefined' && c !== null) {
+					counts[c]++;
+					done = true;
+				}
+			});
+		}
 		return iterable(counts).toArray();
 	},
 
 	// ## Rule construction #######################################################################
 
-	ruleFromValues: function ruleFromValues(values, clazz, metadata) {
+	'dual ruleFromValues': function ruleFromValues(values, clazz, metadata) {
 		var ruleFunction = function (features) {
 			var result = Iterable.zip(features, values).all(function (p) {
 					var f = p[0], v = p[1];
@@ -471,6 +491,33 @@ var RuleBasedGameClassifier = classifiers.RuleBasedGameClassifier = declare(Game
 	add_ruleFromValues: function add_ruleFromValues(values, clazz, metadata) {
 		this.__rules__.push(this.ruleFromValues(values, clazz, metadata));
 		return this;
+	},
+
+	'dual parseActions': function parseActions(levels, chars2Features) {
+		chars2Features = chars2Features || {
+			'.': null,
+			'+': +1, '_':  0, '-': -1
+		};
+		var self = this;
+	
+		return levels.map(function (level) {
+			var r = [],
+				vs;
+			for (var k in level) {
+				vs = level[k];
+				k.split('|').forEach(function (clazz) {
+					vs.split(/\s+/).forEach(function (chars) {
+						var fs = chars.split('').map(function (chr) {
+								return chars2Features[chr];
+							}),
+							c = +(clazz === '+' ? +1 : clazz === '-' ? -1 : clazz),
+							rule = self.ruleFromValues(fs, c, { features: fs, class: c });
+						r.push(rule); 
+					});
+				});
+			}
+			return r;
+		});
 	},
 
 	// ## Players #################################################################################
@@ -590,50 +637,41 @@ tictactoe.TicTacToeGameModel = base.declare(GameModel, {
 
 tictactoe.MODEL = new tictactoe.TicTacToeGameModel();
 
-tictactoe.ACTION_RULES = (function () {
-	var n = null;
-	return [
-		[[ n, n, n,  n, 0, n,  n, n, n], 4], // Take the center.
-		[[ 0, n, n,  n, n, n,  n, n, n], 0], // Take the corners.
-		[[ n, n, 0,  n, n, n,  n, n, n], 2],
-		[[ n, n, n,  n, n, n,  0, n, n], 6],
-		[[ n, n, n,  n, n, n,  n, n, 0], 8],
-
-		[[+1, 0,+1,  n, n, n,  n, n, n], 1], // Take the borders to win.
-		[[+1, n, n,  0, n, n, +1, n, n], 3],
-		[[ n, n,+1,  n, n, 0,  n, n,+1], 5],
-		[[ n, n, n,  n, n, n, +1, 0,+1], 7],
-		
-		[[-1, 0,-1,  n, n, n,  n, n, n], 1], // Take the borders to not lose.
-		[[-1, n, n,  0, n, n, -1, n, n], 3],
-		[[ n, n,-1,  n, n, 0,  n, n,-1], 5],
-		[[ n, n, n,  n, n, n, -1, 0,-1], 7]
-	];
-})();
-
-tictactoe.ACTION_REGEXP = [
-	{ 4: /....1..../ },
-	{ '[0,2,6,8]': /....0..../ },
-	{ 0: /1(00|22)......|1..0..0..|1..2..2..|1...0...0|1...2...2/,
-	  2: /(00|22)1......|..1..0..0|..1..2..2|..1.0.0..|..1.2.2../,
-	  3: /...1(00|22)...|0..1..0..|2..1..2../,
-	  5: /...(00|22)1...|..0..1..0|..2..1..2/,
-	  6: /......1(00|22)|0..0..1..|2..2..1..|..0.0.1..|..2.2.1../,
-	  8: /......(00|22)1|..0..0..1|..2..2..1|0...0...1|2...2...1/
+tictactoe.ACTION_RULES = RuleBasedGameClassifier.parseActions([
+	{ 4: '...._....' },
+	{ '0|2|6|8': '....-....' },
+	{ 0: '_--...... _++...... _..-..-.. _..+..+.. _...-...- _...+...+',
+	  2: '--_...... ++_...... .._..-..- .._..+..+ .._.-.-.. .._.+.+..',
+	  3: '..._--... ..._++... -.._..-.. +.._..+..',
+	  5: '...--_... ...++_... ..-.._..- ..+.._..+',
+	  6: '......_-- ......_++ -..-.._.. +..+.._.. ..-.-._.. ..+.+._..',
+	  8: '......--_ ......++_ ..-..-.._ ..+..+.._ -...-..._ +...+..._'
 	}
-];
+]);
 
 tictactoe.ruleBasedActionPlayer = function ruleBasedActionPlayer(rules) {
 	rules = rules || tictactoe.ACTION_RULES;
 	var ActionRBGC = RuleBasedGameClassifier.actionClassifier({
-			gameModel: tictactoe.MODEL
+			gameModel: tictactoe.MODEL,
+			__rules__: rules
 		}),
-		actionRBGC = new ActionRBGC(),
-		n = null;
-	rules.forEach(function (rule) {
-		actionRBGC.add_ruleFromValues(rule[0], rule[1]);	
-	});
+		actionRBGC = new ActionRBGC();
 	return actionRBGC.player();
+};
+
+tictactoe.RESULT_RULES = RuleBasedGameClassifier.parseActions([{
+	'+': '....+.... +........ ..+...... ......+.. ........+',
+	'-': '....-.... -........ ..-...... ......-.. ........-'
+}]);
+
+tictactoe.ruleBasedResultPlayer = function ruleBasedResultPlayer(rules) {
+	rules = rules || tictactoe.RESULT_RULES;
+	var ResultRBGC = RuleBasedGameClassifier.resultClassifier({
+			gameModel: tictactoe.MODEL,
+			__rules__: rules
+		}),
+		resultRBGC = new ResultRBGC();
+	return resultRBGC.player();
 };
 
 /** # Parametrical game classifier optimization problem
