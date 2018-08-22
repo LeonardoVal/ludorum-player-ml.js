@@ -51,7 +51,7 @@ var problemBuilder = function (inveniemus, ludorum, ludorum_player_ml, mancala) 
 	return new TrainingProblem({
 		opponents: ['random', 'mmab2', 'mmab4' /*, 'mcts10', 'mcts50'*/],
 		matchCount: 4,
-		ClassifierType: ludorum_player_ml.LinearGameClassifier.actionClassifier(
+		ClassifierType: ludorum_player_ml.classifiers.LinearGameClassifier.actionClassifier(
 			new MancalaGameModel()
 		)
 		/*ClassifierType: ludorum_player_ml.LinearGameClassifier.resultClassifier(
